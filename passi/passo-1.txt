@@ -1,0 +1,82 @@
+PASSO 1 — font, barra in alto, link, cursore normale
+Pagina: Home test design (NON la Home)
+======================================================================
+
+Tocchi solo le impostazioni della pagina:
+Pages -> Home test design -> icona ingranaggio (Settings) -> Custom code.
+Non tocchi classi nel Designer.
+
+
+A) CAMPO "Inside <head> tag"  —  AGGIUNGI IN FONDO
+----------------------------------------------------------------------
+Scorri fino in fondo, dopo l'ultimo </style>, vai a capo e incolla queste
+tre righe. Devono stare in fondo: cosi' vincono sugli stili che ci sono sopra.
+
+<!-- RITOCCO: font e stile unico (repo home-test-design) -->
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/cash9086/home-test-design@10e71cb11df94475f7ff4c52fba15d3523b481d5/ritocco.css">
+
+
+B) CAMPO "Before </body> tag"  —  CANCELLA TRE PEZZI
+----------------------------------------------------------------------
+Stanno tutti nella seconda meta' del campo (PARTE 2, le righe con
+"script defer src"). Cancella ogni pezzo compreso il suo commento sopra.
+Non toccare nient'altro.
+
+PEZZO 1 — il cursore a forma di logo (e la calamita sui bottoni)
+
+<!-- cursore: logo che si chiude in un punto, con magnetismo.
+     Il contenitore #capecur e il suo stile stanno in PARTE 1. -->
+<script defer src="https://cdn.jsdelivr.net/gh/cash9086/cursore-custom@e524fb9b035cdfb38263b3e77406b96c68312b85/cape-cursore.js"></script>
+
+
+PEZZO 2 — i due effetti inchiostro. Non fanno piu' niente: gli elementi
+su cui lavoravano non esistono piu' nella pagina.
+
+<!-- Inchiostro: dentro il titolo dell'hero e dentro le immagini .ink-invert -->
+<script defer src="https://cdn.jsdelivr.net/gh/cash9086/cape-title-ink@a07b8acc1d6cd49b613644830bc625b122691901/cape-title-ink.js"></script>
+<script defer src="https://cdn.jsdelivr.net/gh/cash9086/cape-image-ink@79104d4e747f19a8344dc34013fe44dc1b920551/cape-image-ink.js"></script>
+
+
+PEZZO 3 — la scritta VIEW che insegue il mouse
+
+<!-- cape-view: la scritta VIEW che insegue il cursore da lontano -->
+<script defer src="https://cdn.jsdelivr.net/gh/cash9086/cape-view@ad7889eb3e8a8d9b1f98149340fba76cf2ca7b88/cape-view.js"></script>
+
+
+Nota: piu' in alto nello stesso campo c'e' ancora lo stile del vecchio
+cursore (il blocco che inizia con "#capecur{"). Lascialo per ora: senza
+il suo script e' invisibile e non fa niente. Lo puliamo alla fine.
+
+
+C) SALVA E PUBBLICA
+----------------------------------------------------------------------
+Save, poi Publish (va bene anche solo il sottodominio webflow.io).
+
+
+D) COME CONTROLLARE
+----------------------------------------------------------------------
+Guarda la pagina pubblicata, thecapestudio.webflow.io/home-test-design.
+Nel Designer non si vede niente: il codice custom gira solo sul sito.
+
+1. Il cursore e' la freccia normale. Sulle foto non compare piu' VIEW.
+2. Barra in alto: MENU a sinistra e BAG (0) a destra, piccoli e spaziati.
+   Passandoci sopra col mouse compare una linea sottile sotto: le lettere
+   non si allargano piu'.
+3. Il marchio THE CAPE STUDIO al centro e' piu' piccolo e piu' spaziato.
+   Compare quando le lettere grandi dell'apertura sono volate su: quel
+   volo lo togliamo nel passo 2.
+4. DISCOVER, ENTER THE COLLECTION e i link in fondo alla pagina: piu'
+   piccoli, stesso font della barra, linea sottile al passaggio del mouse.
+5. Stringi la finestra del browser, o apri la pagina dal telefono: la barra
+   resta su una riga sola. Il resto della pagina sotto i 1440 pixel e'
+   ancora rotto: lo sistemiamo una sezione alla volta nei prossimi passi.
+6. Tutti gli altri effetti devono funzionare come prima.
+
+
+SE QUALCOSA NON VA
+----------------------------------------------------------------------
+Dimmi cosa vedi e dove (computer o telefono).
+Per tornare indietro: togli le tre righe incollate in A e rimetti i pezzi
+di B. L'originale completo e' nella repo home-test-design, cartella
+"originale", file footer.html.
