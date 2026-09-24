@@ -1,0 +1,157 @@
+/* ==========================================================================
+   The Cape Studio — Home test design · RITOCCO
+   --------------------------------------------------------------------------
+   Un solo foglio di stile per il ritocco della pagina di test.
+
+   Vale SOLO su quella pagina: si carica dalle impostazioni della pagina e
+   non tocca le classi del Designer, quindi la Home vera resta com'e'.
+
+   Perche' qui e non nel Designer: nel Designer quasi tutti gli stili della
+   pagina sono impostati solo sulla misura 1440px e piu'. Sotto i 1440 (un
+   portatile normale, un tablet, un telefono) la pagina resta senza e si
+   rompe. Le regole di questo file valgono a tutte le larghezze.
+
+   Si costruisce a passi: ogni passo e' un blocco qui sotto.
+   ========================================================================== */
+
+
+/* ——— le manopole ——————————————————————————————————————————————————————————
+   Font, colori e misure che tornano in tutta la pagina. Cambi qui, cambia
+   ovunque. */
+:root{
+  --tcs-serif: "Ppeditorialnew Bf 644 B 21500 D 0 C 0", "PP Editorial New", Georgia, serif;
+  --tcs-sans:  "Hanken Grotesk", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --tcs-logo:  TelegrafLight, Telegraf, "Hanken Grotesk", sans-serif;
+
+  --tcs-ink:   #141416;
+  --tcs-muted: #6B6760;
+
+  --tcs-bar:   88px;                      /* altezza della barra in alto   */
+  --tcs-lato:  clamp(16px, 3.9vw, 56px);  /* margine ai lati dello schermo */
+  --tcs-label: 11px;                      /* le scritte piccole maiuscole  */
+}
+@media (max-width: 767px){
+  :root{ --tcs-bar: 64px; --tcs-label: 10px; }
+}
+
+
+/* ═══ PASSO 1 · font, barra in alto, link ══════════════════════════════════ */
+
+/* Il testo di base: Hanken Grotesk al posto di Jost. */
+body{ font-family: var(--tcs-sans); }
+
+.display-26.sottotitolo.testo-piccolo,
+.studio-info__desc{ font-family: var(--tcs-sans); }
+
+/* ——— la barra in alto ———
+   Una riga sola a tutte le larghezze: MENU a sinistra, il marchio al centro,
+   BAG a destra. Le posizioni le usa anche il codice che la fa uscire a
+   scalini: misura dove stanno i tre pezzi, quindi si adatta da solo. */
+.header-cape{
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  width: 100%;
+  height: var(--tcs-bar);
+  background: transparent;
+}
+.header-cape .div-block-35{
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+  padding: 0 var(--tcs-lato);
+  box-sizing: border-box;
+}
+.header-cape-left,
+.header-cape-center,
+.header-cape-right22{
+  display: flex;
+  align-items: center;
+  height: 100%;
+  padding: 0;
+  border: 0;
+}
+.header-cape-left   { width: 100%; justify-content: flex-start; }
+.header-cape-center { width: auto; justify-content: center; }
+.header-cape-right22{ width: 100%; justify-content: flex-end; }
+
+.header-cape a{ text-decoration: none; }
+
+.header-cape .link-block-9,
+.header-cape .link-block-9.right{
+  margin: 0;
+  padding: 14px 0;          /* area da toccare piu' grande, stesso aspetto */
+}
+.header-cape .text-block-35{
+  width: auto;
+  height: auto;
+  font-family: var(--tcs-sans);
+  font-size: var(--tcs-label);
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: .22em;
+  text-transform: uppercase;
+  transition: none;
+}
+/* Al passaggio del mouse: niente lettere che si allargano, una linea sottile. */
+.header-cape .text-block-35:hover{ letter-spacing: .22em; }
+.header-cape .link-block-9:hover .text-block-35,
+.header-cape .link-block-9:focus-visible .text-block-35{
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 6px;
+}
+
+.header-cape .header-btn-cntr{
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: auto;
+  height: 100%;
+  color: var(--tcs-ink);
+  text-decoration: none;
+}
+.header-cape .cape-logo{
+  width: auto;
+  height: auto;
+  font-family: var(--tcs-logo);
+  font-weight: 300;
+  font-size: 15px;
+  line-height: 1;
+  letter-spacing: .34em;
+  padding-left: .34em;      /* la spaziatura lascia un vuoto a destra:
+                               questo lo pareggia e il marchio sta al centro */
+  white-space: nowrap;
+}
+@media (max-width: 767px){
+  .header-cape .cape-logo{ font-size: 11px; letter-spacing: .28em; padding-left: .28em; }
+}
+
+/* ——— i link in pagina: DISCOVER, ENTER THE COLLECTION, VIEW, footer ——— */
+.link-uni.no-magnetic,
+.cape-fondo-voce{
+  font-family: var(--tcs-sans);
+  font-size: var(--tcs-label);
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: .24em;
+  text-transform: uppercase;
+  text-decoration: none;
+  transition: none;
+}
+.link-uni.no-magnetic       { color: var(--tcs-ink); }
+.link-uni.no-magnetic.white { color: #fff; }
+.cape-fondo-voce            { color: var(--tcs-ink); }
+
+.link-uni.no-magnetic:hover,
+.link-uni.no-magnetic:focus-visible,
+.cape-fondo-voce:hover,
+.cape-fondo-voce:focus-visible,
+.cape-fondo-voce.no-magnetic:hover{
+  font-size: var(--tcs-label);
+  letter-spacing: .24em;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 6px;
+}
