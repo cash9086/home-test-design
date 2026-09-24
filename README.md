@@ -12,6 +12,13 @@ copia modificata finisce qui e la pagina di test carica la copia.
 |---|---|---|
 | `ritocco.css` | Lo stile del ritocco: font, barra in alto, link… Vale a tutte le larghezze di schermo e solo sulla pagina di test. | Page settings → Custom code → Inside `<head>`, **in fondo** |
 
+## Copia dell'originale
+
+In `originale/` c'è il codice della pagina com'era **prima** del ritocco
+(24 settembre 2026): `head.html` è il campo *Inside `<head>`*, `footer.html`
+il campo *Before `</body>`*. Se una modifica peggiora le cose, da lì si
+recupera com'era.
+
 ## Come si aggiorna
 
 Ogni link usa il codice di una versione precisa (il pezzo dopo la `@`):

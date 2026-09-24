@@ -1,0 +1,896 @@
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Jost:wght@100;200;300;400;500;600&display=swap" rel="stylesheet">
+
+<style>
+:root{
+  --cape-ink:#252A22;
+  --cape-night:#141416;
+  --cape-mut:#B4B0A7;
+}
+
+html{ overflow-x:clip; }
+
+body{
+  overflow-x:clip !important;
+  overflow-y:visible !important;
+  font-family:'Jost', system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+
+/* rig scroll orizzontale */
+.cape-hs-wrap{ position:relative; z-index:4; margin-top:0 !important; height:320vh; }
+.cape-hs-sticky{ background:transparent !important; }
+
+.cape-hs-track>section{
+  position:relative;
+  width:100vw !important;
+  height:100vh !important;
+  overflow:hidden !important;
+  background-color:#ffffff !important;
+  transition:background-color .55s ease;
+}
+.cape-hs-track .testo-scroll{ color:var(--cape-ink) !important; transition:color .55s ease; }
+.cape-hs-track.is-night>section{ background-color:var(--cape-night) !important; }
+.cape-hs-track.is-night .testo-scroll{ color:var(--cape-mut) !important; }
+
+.cape-hs-palm{ transform:translateX(-50%); align-items:flex-end !important; }
+.cape-hs-palm img{
+  height:96vh !important;
+  width:auto !important;
+  max-width:none !important;
+  transition:filter .55s ease;
+  -webkit-mask-image:linear-gradient(to bottom,#000 91%,transparent 100%);
+          mask-image:linear-gradient(to bottom,#000 91%,transparent 100%);
+}
+.cape-hs-track.is-night .cape-hs-palm img{ filter:brightness(.4) saturate(1.05); }
+
+.cape-leaves{
+  position:absolute; left:-8%; bottom:-14%;
+  width:34%; max-width:520px; height:auto;
+  transform-origin:6% 96%; z-index:2; pointer-events:none;
+  filter:drop-shadow(0 14px 22px rgba(30,40,15,.12));
+  animation:capeBreeze 7s ease-in-out infinite;
+}
+@keyframes capeBreeze{
+  0%  { transform:rotate(0deg)   skewX(0deg)   }
+  18% { transform:rotate(.6deg)  skewX(.4deg)  }
+  34% { transform:rotate(.3deg)  skewX(.15deg) }
+  50% { transform:rotate(.95deg) skewX(.7deg)  }
+  68% { transform:rotate(.4deg)  skewX(.3deg)  }
+  84% { transform:rotate(.75deg) skewX(.5deg)  }
+  100%{ transform:rotate(0deg)   skewX(0deg)   }
+}
+
+/* tendina scroll orizzontale */
+.cape-ln{ display:block; }
+.cape-rise.is-armed{ clip-path:inset(-0.14em -100% -0.14em -100%); }
+</style>
+
+<style>
+/* ======================================================================
+   SOSTITUISCE il blocco della sezione intro dentro il primo <style> del
+   custom code di PAGINA -> head: dalla riga "sezione intro" fino alla riga
+   prima del commento "ponte intro -> orizzontale".
+   ====================================================================== */
+
+/* sezione intro */
+.section-intro{
+  --binario:432vh;
+  --salita:100vh;
+  --ink:#252A22;
+  --ink-pale: transparent;
+  position:relative;
+  z-index:6;
+  height:var(--binario);
+  margin-top:calc(-1 * var(--salita));
+  background:transparent;
+}
+.intro-stick{
+  position:sticky; top:0;
+  height:100vh;
+  display:flex; align-items:center; justify-content:center;
+  background:#FFFFFF;
+  box-shadow:none;
+}
+:where(.intro-stick){ padding:0 6vw; }
+:where(.intro-q)   { margin:0; max-width:11.5em; color:var(--ink-pale); }
+:where(.intro-sign){ width:220px; margin-left:auto; margin-top:48px; }
+.intro-w{ display:inline-block; white-space:nowrap; color:var(--ink); opacity:0; }
+.intro-sign .sign{ display:block; width:100%; height:auto; overflow:visible; }
+.intro-sign .sign-s{
+  fill:none; stroke:var(--ink); stroke-width:13;
+  stroke-linecap:round; stroke-linejoin:round;
+}
+
+
+
+
+  
+/* ponte intro -> orizzontale
+   La intro (z 6) resta sopra il ponte (z 5) per i primi 60vh: il foglio del
+   ponte e il pannello della intro sono lo stesso bianco, quindi quando la
+   intro si sfila non si vede nulla. Il rig orizzontale sta sotto, a z 4. */
+.cape-bridge{
+  position:relative; z-index:5;
+  height:200vh;
+  margin-top:-160vh;
+  pointer-events:none;
+}
+
+/* un z-index positivo batte sempre uno sticky con auto:
+   il foglio di tessere DEVE stare sopra i livelli della fotografia */
+.cape-bridge-stick{ position:sticky; top:0; height:100vh; overflow:hidden; z-index:1; }
+.cape-bridge-stick.is-off{ visibility:hidden; }
+.cape-bridge-sheet{ position:absolute; inset:0; perspective:1500px; }
+
+.cape-bridge-amb,
+.cape-bridge-photo{
+  position:fixed; inset:0; z-index:0; overflow:hidden;
+  visibility:hidden; pointer-events:none;
+}
+.cape-bridge-amb.is-on,
+.cape-bridge-photo.is-on{ visibility:visible; }
+
+/* il fondo ambiente: la stessa foto resa a un ottavo e poi ingrandita otto volte.
+   Sfocare 180px invece di 1440 costa un millesimo e dà lo stesso campo di colore;
+   si rigenera da qualunque fotografia, quindi è adattivo per costruzione. */
+.cape-bridge-amb img{
+  position:absolute; left:42.5%; top:42.5%;
+  width:15%; height:15%; max-width:none;
+  object-fit:cover;
+  transform-origin:50% 50%;
+  transform:scale(8);
+  filter:blur(6px) saturate(1.55) brightness(1.06);
+}
+
+.cape-bridge-photo img{
+  position:absolute; left:0; top:0; max-width:none;
+  transform-origin:50% 50%;
+  backface-visibility:hidden;
+}
+
+  
+
+/* Le tessere: bordi a pixel interi, nessuna sovrapposizione. Due tessere
+   confinanti arrotondano allo stesso intero, quindi combaciano esatte.
+
+   Bianco e fotografia sono DUE STRATI DI FONDO della stessa tessera, non due
+   elementi sovrapposti. Due strati traslucidi con la stessa geometria, per
+   quanto allineati, vengono composti separatamente: il pixel di bordo prende
+   una copertura parziale due volte e resta un residuo (fino a un quarto del
+   colore di sotto) che disegna un filo lungo il perimetro. Un elemento solo
+   ha un bordo solo: la dissolvenza avviene dentro la sua unica passata di
+   disegno e il bordo si compone una volta, correttamente, contro il fondo.
+   Per lo stesso motivo qui non serve overflow:hidden — non c'è nessun figlio
+   da ritagliare, il fondo è ritagliato dal box della tessera. */
+.cape-tile{
+  --velo:1;
+  position:absolute;
+  background-image:
+    linear-gradient(rgba(255,255,255,var(--velo)), rgba(255,255,255,var(--velo))),
+    var(--fetta, none);
+  background-repeat:no-repeat;
+  transform-origin:50% 50%;
+  backface-visibility:hidden;
+}
+.cape-bridge-sheet.is-live .cape-tile{ will-change:transform; }
+
+/* classe, MAI style inline: reveal() del rig orizzontale cancella l'inline */
+.cape-hs-track .image-14.is-ponte{ opacity:0; pointer-events:none; }
+
+@media (prefers-reduced-motion:reduce), (max-width:991px){
+  .cape-bridge{ display:none; }
+  .section-intro{ --binario:520vh; }
+}
+</style> 
+
+
+
+<style>
+/* ——— la foto si scompone in pixel: cielo stellato, poi bianco ———
+   Il motore sta su GitHub (cash9086/transition → cape-dust.js) e viene
+   caricato dal footer. Qui dentro ci sono solo le misure della sezione:
+   tutti gli altri numeri — velocità, densità, scintillio — stanno nel
+   file, apposta, così si cambiano senza rientrare in Webflow. */
+
+.cape-dust-pin{
+  position:relative; z-index:7;
+  height:600vh;
+  /* Si accavalla al rig giusto il viewport in cui questo si sfilerebbe:
+     così la scomposizione parte nell'istante esatto in cui l'orizzontale
+     finisce, senza un fotogramma di terra di nessuno. */
+  margin-top:-100vh;
+  pointer-events:none;
+}
+
+/* Mentre i pixel volano, l'ultima slide non scrolla: sta ferma.
+   Questa regola c'era già per l'inchiostro e serve identica anche qui.
+   L'unica aggiunta è pointer-events:none, ed è una riparazione: la foto
+   spenta e il bottone "discover" restano sotto il cielo stellato, e
+   opacità zero NON toglie il puntatore. Senza questa riga, passando il
+   mouse dove stava la foto compare l'etichetta VIEW in mezzo alle stelle,
+   e il bottone si può perfino cliccare. Succedeva anche con l'inchiostro:
+   è un difetto vecchio, si chiude qui. */
+.cape-hs-sticky.is-fermo{
+  position:fixed; top:0; left:0; right:0; width:100%; height:100vh;
+  pointer-events:none;
+}
+
+.cape-dust-stick{
+  position:sticky; top:0; height:100vh; overflow:hidden;
+  background:transparent;   /* sotto c'è la slide nera: deve vedersi */
+}
+
+/* Il canvas se lo crea il modulo dentro .cape-dust-stick. Sta qui perché
+   se lo stile arrivasse dal JavaScript, per un fotogramma il canvas
+   sarebbe grande 300x150 (la misura di default di un canvas) e si
+   vedrebbe un rettangolo comparire e poi allargarsi. */
+.cape-dust-sky{
+  position:absolute; inset:0; width:100%; height:100%; display:block;
+}
+
+/* La slide sotto svanisce mentre il cielo si forma. Si spegne il
+   CONTENUTO, non le sezioni: il loro fondo nero deve restare, è il cielo
+   su cui si staccano le stelle. */
+.cape-hs-track > section > *,
+.cape-hs-palm,
+.cape-leaves-top{ opacity:var(--cape-veil, 1); }
+
+/* La fotografia vera si spegne appena è il canvas a ridisegnarla — da lì
+   in poi quella che vedi è la sua copia in pixel, e due copie sovrapposte
+   si vedrebbero. Classe e non stile inline: reveal() del rig orizzontale
+   cancella l'inline, e la foto tornerebbe fuori da sotto le stelle. */
+.cape-hs-track .image-14.is-dust-off{ opacity:0 !important; }
+
+@media (max-width:600px){
+  /* Su telefono la corsa si accorcia: cinque schermate di scroll su un
+     display alto sono tantissime, e il cielo ha meno pixel da mostrare. */
+  .cape-dust-pin{ height:480vh; }
+}
+
+
+/* ═══ L'INCHIOSTRO, IN NAFTALINA ═══════════════════════════════════
+   Le regole della vecchia transizione, disattivate ma non buttate.
+   Sono chiuse dentro una @media che non può essere vera: nessuno schermo
+   è largo zero, quindi non si applicano mai.
+
+   Non sono state messe dentro un commento perché dentro ci sono già dei
+   commenti, e in CSS i commenti non si annidano: il primo "chiudi
+   commento" interno chiuderebbe tutto quanto, e da lì in poi il foglio si
+   romperebbe in silenzio.
+
+   PER RIACCENDERLE: togli la riga @media qui sotto e la sua graffa di
+   chiusura in fondo, rimetti --cape-veil a --ink-veil qui sopra, riaccendi
+   l'Embed dell'inchiostro e i suoi due script nel footer.
+   (.cape-hs-sticky.is-fermo non è qui dentro perché serve viva a
+   entrambe le sezioni: sta più su, invariata.)                       */
+@media (max-width:0px){
+
+  .ink-pin{
+    position:relative; z-index:7;
+    height:420vh;
+    /* Si accavalla al rig giusto il viewport in cui questo si sfilerebbe:
+       così l'inchiostro parte nell'istante in cui l'orizzontale finisce. */
+    margin-top:-100vh;
+    pointer-events:none;
+  }
+
+  .ink-stick{
+    position:sticky;top:0;height:100vh;overflow:hidden;
+    background:transparent;             /* era #141416: adesso sotto c'è la slide */
+  }
+
+  .ink-title{
+    position:absolute;inset:0;z-index:1;display:grid;place-items:center;
+    pointer-events:none;text-align:center;
+    font-family:"Glamor-LightCondensed","Oswald","Archivo Narrow",sans-serif;
+    font-weight:300;font-size:clamp(44px,13vw,200px);
+    line-height:.9;letter-spacing:.02em;color:#141416;white-space:nowrap;
+  }
+
+  @media (max-width:600px){
+    .ink-pin{ --corsa:340vh }
+    .ink-title{white-space:normal;line-height:1}
+  }
+
+}
+</style>
+
+
+<style>
+  /* Scrollbar nativa: via, su tutti i browser.
+     Sta qui e non nello script apposta. Se la togliesse il JS, per una
+     frazione di secondo la barra sarebbe ancora li' e poi la pagina
+     salterebbe di ~15px quando sparisce: su Windows e Linux la scrollbar
+     occupa larghezza vera, non e' un overlay come su Mac. Messa nella head
+     la larghezza del viewport e' gia' quella giusta al primo paint. */
+  html{ scrollbar-width:none; -ms-overflow-style:none; }
+  html::-webkit-scrollbar,
+  body::-webkit-scrollbar{ width:0; height:0; display:none; }
+</style>
+
+
+
+<style>
+/* ======================================================================
+   .cape-open  —  il titolo si srotola, il video si apre a tendina
+   ----------------------------------------------------------------------
+   DOVE VA: Page Settings della Home, campo "Inside head tag", IN FONDO,
+   dopo i blocchi di stile che ci sono gia'. Incolla tutto, dalla prima
+   riga all'ultima: il tag di apertura e quello di chiusura sono qui.
+
+   Qui dentro c'e' SOLO quello che il pannello di Webflow non sa scrivere:
+   i calc() e l'origine della scala. Tutto il resto (posizioni, sticky,
+   tipografia, colori, padding, overflow) resta nel Designer: se una
+   proprieta' e' gia' nel pannello, non la trovi qui.
+   ====================================================================== */
+
+/* ——— le manopole ————————————————————————————————————————————————
+   Sono tutte qui. Cambia questi cinque numeri e cambia tutto: il JS non
+   ha valori suoi, li legge da queste righe. */
+.cape-open{
+  
+  --corsa:     50vh;
+
+  --sosta:     70vh;  /* quanto resta ferma a pieno schermo prima del footer*/
+  --anticipo:  75vh;
+
+  --w0:  2;           /* larghezza della fessura iniziale, in vw            */
+  --w1: 100;          /* larghezza di arrivo, in vw                         */
+
+  --p: 0;             /* avanzamento 0 -> 1. Lo scrive il JS, non toccarlo. */
+}
+
+/* ——— il binario ————————————————————————————————————————————————
+   Alto quanto lo sticky (100vh) piu' la corsa piu' la sosta. Il margine
+   negativo lo fa cominciare mentre il testo e' ancora in pagina: e' per
+   questo che la tendina comincia ad alzarsi prima che il titolo sia
+   sparito. */
+.cape-open .cape-open-rail{
+  height: calc(100vh + var(--corsa) + var(--sosta));
+  margin-top: calc(-1 * var(--anticipo));
+}
+
+/* ——— la tendina ————————————————————————————————————————————————
+   Questo elemento non e' il video: e' la FESSURA da cui lo si vede. Il
+   suo bordo basso sta fermo sul fondo dello schermo e il bordo alto
+   sale, esattamente come una tapparella che si alza. L'altezza parte da
+   zero, quindi al primo istante non si vede niente: nessun riquadro che
+   compare gia' grande.
+
+   Larghezza e altezza si aprono insieme, tutte e due praticamente da
+   zero. Il 10 di --w0 non e' scelto a occhio: nel riferimento il primo
+   istante visibile della fessura e' largo 205 px su 1880, cioe' l'11%,
+   ed e' alto 16 px. Da li' in poi, con l'interpolazione lineare qui
+   sotto, i due numeri ricalcano la registrazione quasi punto per punto:
+
+        avanzamento     misurato          questa formula
+           10%         17% x  8%           19% x 10%
+           30%         39% x 30%           37% x 30%
+           50%         55% x 45%           55% x 50%
+           70%         71% x 65%           73% x 70%
+
+   Se la vuoi una tendina e basta, senza il ventaglio laterale, metti
+   --w0: 100 e la fessura nasce gia' larga quanto lo schermo e sale
+   soltanto.
+
+   overflow:hidden sta qui e non nel pannello apposta. E' il ritaglio:
+   senza, il filmato — che e' grande quanto lo schermo — esce da una
+   fessura alta zero e dipinge una fascia nera a tutta pagina. Una cosa
+   da cui dipende l'intero meccanismo non puo' stare in una casella che
+   si dimentica di spuntare. */
+.cape-open .cape-open-frame{
+  width:  calc( (var(--w0) * 1vw) * (1 - var(--p)) + (var(--w1) * 1vw) * var(--p) );
+  height: calc( 100vh * var(--p) );
+  bottom: 0;
+  overflow: hidden;
+  transform: translate3d(-50%, 0, 0);
+  backface-visibility: hidden;
+}
+
+/* Nessun filmato (indirizzo ancora da sostituire, file che non si carica):
+   la tendina sparisce del tutto. Meglio niente che un buco nero in mezzo
+   alla pagina. La classe la mette il JS. */
+.cape-open.is-muto .cape-open-frame{ display:none; }
+
+/* ——— il filmato ————————————————————————————————————————————————
+   Sta fermo. E' grande quanto lo schermo e inchiodato in basso al
+   centro, cioe' esattamente dove sara' alla fine: mentre la fessura si
+   apre, l'immagine non scala e non scivola, viene solo scoperta. E'
+   questo che fa la differenza tra una tendina e un riquadro che cresce
+   — in un riquadro che cresce l'inquadratura si riapre di continuo e
+   l'occhio lo legge come uno zoom.
+
+   Non ha un fondo colorato: se il filmato non c'e' ancora, qui non si
+   deve vedere niente. Il nero al primo istante lo evita il poster.
+
+   L'Embed di Webflow avvolge il video in un div: va attraversato,
+   altrimenti l'ancoraggio si perde. */
+.cape-open .cape-open-frame .w-embed{
+  position:static;
+  display:block;
+}
+
+.cape-open .cape-open-media{
+  position:absolute;
+  bottom:0;
+  left:50%;
+  width:100vw;
+  height:100vh;
+  transform:translateX(-50%);
+  display:block;
+  object-fit:cover;
+}
+
+/* ——— le righe del titolo ——————————————————————————————————————
+   E' la tendina che hai gia' sullo scroll orizzontale, non una che le
+   somiglia: la riga fa da bordo e il contenuto sale da dietro. Sono le
+   tue stesse classi, .cape-rise e .cape-ln, quindi il tuo foglio di
+   stile le vestirebbe gia' da solo — le ripeto qui, identiche, solo
+   perche' questa sezione stia in piedi anche se un domani quelle regole
+   si spostano.
+
+   Il -100% ai lati non e' un vezzo: senza, il bordo taglierebbe la
+   sporgenza laterale delle lettere (la pancia della O, la coda della Q)
+   di qualche decimo di pixel, e si vede. Il -0.14em sopra e sotto
+   lascia respirare accenti e discendenti. */
+.cape-open .cape-open-line{ display:block; }
+.cape-open .cape-open-line > .cape-ln{ display:block; }
+.cape-open .cape-open-line.is-armed{
+  clip-path: inset(-0.14em -100% -0.14em -100%);
+}
+.cape-open.is-armed .cape-open-line > .cape-ln{ will-change:transform; }
+
+/* ——— telefono e tablet ————————————————————————————————————————
+   La fessura nasce piu' larga: a 55vw su un telefono sarebbe uno
+   spiraglio. Corsa e sosta si accorciano, perche' su un pollice lo
+   scroll costa. */
+@media (max-width:991px){
+  .cape-open{
+    /* --corsa resta 50vh come sul desktop: adesso non e' piu' "quanto
+       scroll ci vuole" — che su un pollice costa e andava accorciato —
+       ma il rapporto fra la velocita' del video e quella del testo, e
+       quello e' una scelta di disegno, non dello schermo. */
+    --corsa:     50vh;
+    --sosta:     40vh;
+    --anticipo:  55vh;  /* ripiego: quello vero lo scrive il JS */
+    --w0: 20;        /* su un telefono il 10% sarebbe un capello */
+  }
+}
+
+/* ——— chi ha chiesto meno movimento ——————————————————————————————
+   Niente binario, niente tendina, niente srotolamento: il video e' gia'
+   aperto e il titolo e' gia' li'. Il JS si ferma da solo, questo e' il
+   vestito. */
+@media (prefers-reduced-motion:reduce){
+  .cape-open .cape-open-rail{ height:100vh; margin-top:0; }
+  .cape-open .cape-open-frame{ width:100vw; height:100vh; }
+  .cape-open .cape-open-line{ clip-path:none !important; }
+}
+</style>
+
+
+
+
+
+
+
+
+
+
+
+
+<style>
+/* barra in alto: lo stato chiaro, quello che finora non esisteva.
+   Sta qui e non nel Designer perche' sono regole sui FIGLI della barra:
+   logo e bottoni sono testi con un colore loro, e una combo class sul
+   padre non li raggiunge.
+
+   Qui NON si parla di transizioni, di proposito: la forma abbreviata le
+   sostituirebbe, e questi elementi hanno gia' la loro per il letter-spacing
+   in hover. Se un domani serve la dissolvenza del colore, si aggiunge nel
+   Designer accanto a quella che c'e' gia', non qui. */
+
+.header-cape.hdr-invert .cape-logo{ color:#ffffff; }
+
+/* --- da qui in giu' e' il pezzo che ribalta una decisione presa apposta ---
+   menu e bag (0) sono fissati a #141416 con un !important dentro l'Embed
+   del marchio dell'hero, per NON seguire il contrasto della barra. Per
+   fargliele seguire serve un !important piu' specifico: tre classi invece
+   di due. Togli questo blocco e i due bottoni restano scuri; il logo
+   diventa bianco lo stesso. */
+
+.header-cape.hdr-invert .header-cape-left a,
+.header-cape.hdr-invert .header-cape-left a *,
+.header-cape.hdr-invert .header-cape-right22 a,
+.header-cape.hdr-invert .header-cape-right22 a *{
+  color:#ffffff !important;
+}
+</style>
+
+
+
+
+
+
+
+<style>
+/* ======================================================================
+   .cape-rilievo — la sezione delle due citta'
+   ----------------------------------------------------------------------
+   DOVE VA: Page Settings della Home, campo "Inside head tag", IN FONDO,
+   dopo i blocchi di stile che ci sono gia'. Incolla tutto, dalla prima
+   riga all'ultima: il tag di apertura e quello di chiusura sono qui.
+
+   COME STA IN PAGINA
+   La sezione non arriva scorrendo: e' un binario alto due schermate e
+   mezzo, e dentro c'e' un pannello alto uno schermo che si incolla. Il
+   binario comincia 56vh PRIMA della fine della sezione dei pixel, cioe'
+   dentro al suo bianco finale — quella resta bianca e ferma negli ultimi
+   60vh del suo binario. Il pannello e' invisibile finche' non si incolla
+   davvero: nell'istante in cui compare, sotto c'e' bianco pieno e lui e'
+   bianco uguale, quindi non si vede arrivare niente. Le mappe si
+   disegnano li' sopra.
+
+   Le due misure che comandano questo sono --rilievo-anticipo (quanto
+   entra dentro al bianco) e --rilievo-sosta (per quanto scroll resta
+   incollata).
+
+   LA RIGA SULLA BARRA IN ALTO: .header-cape non ha uno z-index suo,
+   questa sezione invece ce l'ha. Senza quella riga la barra finirebbe
+   sotto. Se un domani la togli, ricordati il perche'.
+
+   LE MISURE DELLE PIANTE sono un min() fra larghezza e altezza, e non e'
+   un vezzo: con la sola larghezza, su uno schermo largo e basso la mappa
+   cresce in verticale e va addosso alle scritte. Provato a quattordici
+   formati, da 2560x1080 a 360x780.
+
+   DUE MANOPOLE LE LEGGE ANCHE IL CODICE: --rilievo-ink e' il nero con cui
+   vengono dipinte le strade, --rilievo-strade dice quanto sono pallide le
+   vie minori. Cambiali qui e cambia quello che si vede.
+
+   --rilievo-tela e' quanto e' grande lo scavo del surfista. Anche questa
+   e' un min() fra larghezza e altezza, per lo stesso motivo delle mappe.
+
+   ATTENZIONE AL FONDO: --rilievo-fondo non e' solo il colore della
+   sezione, e' anche il valore su cui il codice del rilievo fa il conto
+   della luce. Su bianco puro il rilievo puo' solo fare ombra. Se un
+   domani torni a un grigio chiaro, cambialo anche nel file su GitHub
+   (manopola FONDO: 1.0 e' bianco, 0.957 e' #f4f4f4) e riabbassa DIFFUSA
+   e LUCIDA.
+   ====================================================================== */
+
+.cape-rilievo{
+  --rilievo-fondo:   #ffffff;
+  --rilievo-ink:     #141416;
+  --rilievo-tela:    min(56vw, 74vh);
+  --rilievo-coord:   .62;
+  --rilievo-strade:  .5;
+
+  /* le due piante: la misura e' limitata SIA in larghezza SIA in altezza.
+     Se dipendesse solo da vw, su uno schermo largo e basso crescerebbe in
+     verticale fino ad andare addosso alle scritte. */
+  --rilievo-milano:  min(30vw, 50vh);
+  --rilievo-parigi:  min(34vw, 58vh);
+
+  /* IL MONTAGGIO — le due misure che decidono dove sta la sezione.
+     anticipo: di quanto entra DENTRO alla sezione dei pixel. Quella resta
+     bianca e ferma negli ultimi 60vh del suo binario (dall'88% in poi):
+     56vh ci stanno dentro con un margine. E' li' che questa sezione si
+     incolla, ed e' li' che le mappe cominciano a disegnarsi.
+     sosta: per quanto scroll resta incollata dopo. */
+  --rilievo-anticipo: 56vh;
+  --rilievo-sosta:   140vh;
+
+  position: relative;
+  z-index: 7;                  /* come la sezione dei pixel; viene dopo nel
+                                  documento, quindi le passa davanti */
+  height: calc(100vh + var(--rilievo-sosta));
+  margin-top: calc(-1 * var(--rilievo-anticipo));
+  pointer-events: none;        /* il binario e' alto due schermate e mezzo:
+                                  non deve rubare il mouse a nessuno */
+}
+
+/* La barra in alto non ha uno z-index suo: senza questa riga finirebbe
+   sotto la sezione, che invece ce l'ha. */
+.header-cape{ z-index: 20; }
+
+/* ——— il pannello incollato ———
+   Sta fermo sullo schermo mentre la pagina scorre. E' nascosto finche' non
+   si incolla davvero: se si vedesse arrivare dal basso, la sezione
+   "salirebbe" invece di essere gia' li'. Nell'istante in cui si incolla,
+   sotto c'e' il bianco pieno della sezione dei pixel e il pannello e'
+   bianco uguale: il passaggio non si vede. */
+.cape-rilievo .cape-rilievo-stick{
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow: visible;
+  background: var(--rilievo-fondo);
+  pointer-events: auto;
+  visibility: hidden;
+}
+.cape-rilievo.is-incollata .cape-rilievo-stick{ visibility: visible; }
+
+/* ——— il bassorilievo ——— */
+.cape-rilievo .cape-rilievo-tela{
+  position: absolute;
+  left: 50%; top: 50%;
+  width: var(--rilievo-tela);
+  aspect-ratio: 1600 / 1035;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 1;
+}
+.cape-rilievo .cape-rilievo-canvas{ display:block; width:100%; height:100%; }
+
+/* ——— le due piante ———
+   Non finiscono con un taglio: la maschera le spegne verso il bordo, e le
+   strade si diradano gia' da sole. Parigi sborda apposta sotto il pannello
+   e va a finire sulla sezione dopo, dissolvendosi. */
+.cape-rilievo .cape-rilievo-mappa{
+  position: absolute;
+  display: block;
+  pointer-events: none;
+  z-index: 2;
+  opacity: 0;
+  transition: opacity .55s ease;
+  -webkit-mask-image: radial-gradient(closest-side at 50% 50%, #000 58%, rgba(0,0,0,.45) 80%, transparent 100%);
+          mask-image: radial-gradient(closest-side at 50% 50%, #000 58%, rgba(0,0,0,.45) 80%, transparent 100%);
+}
+.cape-rilievo.is-dentro .cape-rilievo-mappa{ opacity: 1; }
+
+.cape-rilievo .cape-rilievo-mappa.is-milano{ width: var(--rilievo-milano); left: -6vw; top: -3vh; }
+.cape-rilievo .cape-rilievo-mappa.is-parigi{ width: var(--rilievo-parigi); right: -6vw; top: auto; bottom: -14vh; }
+
+/* ——— le due citta' ——— */
+.cape-rilievo .cape-rilievo-citta{ position: absolute; z-index: 3; }
+.cape-rilievo .cape-rilievo-citta.is-milano{ left: 5vw;  top: 53vh; }
+.cape-rilievo .cape-rilievo-citta.is-parigi{ right: 5vw; top: 29vh; }
+
+.cape-rilievo .cape-rilievo-nome{
+  margin: 0;
+  font-size: clamp(34px, 3.35vw, 66px);
+  line-height: 1.02;
+  font-weight: 300;
+  letter-spacing: -.012em;
+  color: var(--rilievo-ink);
+}
+.cape-rilievo .cape-rilievo-coord{
+  margin: .85em 0 0;
+  font-size: clamp(12px, .95vw, 18px);
+  line-height: 1.2;
+  font-weight: 400;
+  letter-spacing: .01em;
+  color: var(--rilievo-ink);
+  opacity: var(--rilievo-coord);
+}
+
+/* ——— telefono e tablet ——— */
+@media (max-width: 991px){
+  .cape-rilievo{
+    --rilievo-milano: min(62vw, 34vh);
+    --rilievo-parigi: min(70vw, 38vh);
+    --rilievo-anticipo: 40vh;
+    --rilievo-sosta: 90vh;
+  }
+  .cape-rilievo .cape-rilievo-tela{ display: none; }
+  .cape-rilievo .cape-rilievo-mappa.is-milano{ left: -16vw; top: -5vh; }
+  .cape-rilievo .cape-rilievo-mappa.is-parigi{ right: -18vw; top: auto; bottom: -10vh; }
+  .cape-rilievo .cape-rilievo-citta.is-milano{ left: 7vw;  top: 38vh; }
+  .cape-rilievo .cape-rilievo-citta.is-parigi{ right: 7vw; top: 58vh; }
+  .cape-rilievo .cape-rilievo-nome{ font-size: clamp(30px, 8.4vw, 54px); }
+  .cape-rilievo .cape-rilievo-coord{ font-size: clamp(11px, 3vw, 15px); }
+}
+</style>
+
+
+
+
+
+
+
+
+<style>
+/* ======================================================================
+   .cape-fondo  —  il footer della home
+   ----------------------------------------------------------------------
+   DOVE VA: Pages -> Home -> Settings -> Custom code -> "Inside <head> tag",
+   IN FONDO, dopo i blocchi di stile che ci sono gia'. Incolla tutto, dalla
+   prima riga all'ultima: il tag di apertura e quello di chiusura sono qui.
+
+   Qui dentro c'e' SOLO quello che il pannello di Webflow non sa scrivere:
+   il position:fixed che il footer prende soltanto a fine pagina, il velo
+   nero con le sue gocce, e lo z-index che manda il video sopra al footer
+   invece che sotto. Tutto il resto — colori, padding, tipografia,
+   allineamenti, la larghezza della linea — resta nel Designer: se una
+   proprieta' e' gia' nel pannello, non la trovi qui.
+   ====================================================================== */
+
+
+/* ——— le manopole ————————————————————————————————————————————————
+   Sono due, e stanno sul POSTO e non sul footer: le variabili scendono, non
+   salgono, e il posto e' il padre. Il JS non ha valori suoi, li legge da qui.
+
+   Nel Designer al posto e al footer metti 60VH a mano, altrimenti li vedi
+   schiacciati mentre lavori. Quel numero e' solo l'anteprima: al momento di
+   disegnare vince --alto, ed e' l'unico da cambiare. */
+.cape-fondo-posto{
+
+  --alto:   65vh;   /* quanto e' alto il footer, cioe' QUANTO il video sale.
+                       Sotto i 100vh per forza: e' esattamente questo che
+                       tiene il video sempre un po' in vista invece di farlo
+                       uscire tutto. 50-75 e' la forchetta buona: piu' in su
+                       del 75 e in cima resta una fessura, piu' in giu' del
+                       50 e il footer non ci sta dentro.                   */
+
+  --soglia: 0.45;   /* quanto footer va scoperto prima che il nero cominci a
+                       ritirarsi. Sotto questa soglia e' nero pieno e basta.
+                       0 = si ritira da subito, 0.8 = quasi alla fine.     */
+
+  position: relative;
+  height: var(--alto);
+}
+
+
+/* ——— il footer, prima che si sganci ————————————————————————————————
+   Riempie il suo posto. E' lo stato in cui resta se il JS non si carica, o
+   se hai chiesto meno movimento: un footer normale, bianco, in fondo alla
+   pagina, con la scritta nera gia' li'. Meglio un footer fermo che nessun
+   footer. */
+.cape-fondo{
+  --p: 0;           /* quanto il nero si e' gia' ritirato, 0 -> 1.
+                       Lo scrive il JS, non toccarlo.                      */
+
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  height: var(--alto);
+}
+
+
+/* ——— il footer appeso ————————————————————————————————————————————
+   Da qui in poi non si muove piu': e' il bordo basso del video che sale e
+   lo scopre. La classe la mette il JS, e la mette tardi — a fine pagina,
+   col video aperto a pieno schermo che copre tutto. Un elemento fisso
+   appeso li' fin dalla prima riga si vedrebbe spuntare da sotto ogni
+   sezione senza fondo pieno.
+
+   Il posto resta alto uguale nei due stati, quindi allo scambio la pagina
+   non si accorcia e non salta sotto le dita. */
+.cape-fondo.is-appesa{
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  width: 100%;
+  z-index: 1;
+}
+
+
+/* Il video deve passare SOPRA al footer, non dietro: e' lui che scopre, e
+   una cosa che scopre sta davanti. La sezione non aveva uno z-index suo, e
+   senza finirebbe sotto al footer fisso — che e' positivo — e non ci
+   sarebbe piu' niente da scoprire. L'8 sta sopra al footer (1) e sotto alla
+   barra in alto (20), che resta sopra a tutto. */
+.cape-open{ position: relative; z-index: 8; }
+
+
+/* ——— il velo ————————————————————————————————————————————————————
+   Le gocce di nero. Ognuna e' messa alla misura d'ARRIVO — la sua lettera —
+   e poi ingrandita col transform fino a coprire tutto il footer. In questo
+   verso e non nell'altro: sono rettangoli pieni, quindi lo scale non ha
+   niente da ridisegnare, e a ogni fotogramma si scrive una proprieta' sola
+   per goccia invece di quattro.
+
+   transform-origin in alto a sinistra perche' il conto nel JS parte da li'.
+   Toccarlo vuol dire spostare tutte le gocce.
+
+   will-change solo mentre il footer e' appeso: ogni goccia diventa un
+   livello suo, e trenta livelli tenuti accesi per tutta la pagina si pagano
+   in memoria su un telefono. */
+.cape-fondo-velo{
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+}
+.cape-fondo-goccia{
+  position: absolute;
+  background: #000;
+  transform-origin: 0 0;
+  backface-visibility: hidden;
+}
+.cape-fondo.is-appesa .cape-fondo-goccia{ will-change: transform; }
+
+
+/* I pezzi in cui il JS spezza il testo. inline e non inline-block apposta:
+   un inline-block romperebbe l'andare a capo delle informazioni, e su un
+   telefono quelle vanno a capo per forza. */
+.cape-fondo-pz{ display: inline; }
+
+
+/* THE CAPE su una riga sola. Non e' un vezzo: se va a capo non e' piu' da
+   bordo a bordo, e il codice che gli calcola il corpo misurerebbe due righe
+   invece di una. Sta qui e non nel Designer solo perche' Webflow non ha una
+   casella per white-space. Corpo, interlinea, colore e interlettera stanno
+   nel pannello, dove devono stare. */
+.cape-fondo-marchio{ white-space: nowrap; }
+
+
+/* ——— telefono e tablet ————————————————————————————————————————————
+   Le informazioni si impilano invece di stare in fila, quindi il footer ha
+   bisogno di piu' respiro. Il video ne esce un po' di piu' — ne resta in
+   vista il 30% invece del 40% — e va bene cosi': su uno schermo alto e
+   stretto una striscia di 40vh sarebbe piu' di quello che serve a capire
+   che il video e' ancora li'. */
+@media (max-width: 991px){
+  .cape-fondo-posto{ --alto: 70vh; }
+}
+</style>
+
+
+
+
+
+
+
+
+<style>
+/* ======================================================================
+   .cape-radura — la carta, i diamanti che si posano, la lastra incisa
+   ----------------------------------------------------------------------
+   La sezione delle due citta' non e' piu' una sezione: e' la seconda meta'
+   della dust, e vive dentro al suo pannello incollato, sullo stesso
+   binario. Qui dentro c'e' SOLO quello che il pannello di Webflow non sa
+   scrivere. Tutto il resto sta nel JavaScript.
+   ====================================================================== */
+
+/* ——— il binario si allunga ———
+   La dust adesso occupa il 64% della corsa e l'ultimo terzo e' della
+   radura: 600 / 0.64 = 940. Il suo spettacolo dura esattamente quanto
+   prima — ci pensa il parametro `coda` dentro cape-dust.js, che riscala il
+   suo progresso. Se un domani togli la radura, questa riga torna a 600vh e
+   `coda` torna a 0.
+
+   Queste due regole vengono DOPO quelle piu' su nella head e le vincono:
+   non c'e' bisogno di andare a cambiare quelle. */
+.cape-dust-pin{ height:940vh; }
+@media (max-width:600px){ .cape-dust-pin{ height:750vh; } }
+
+/* ——— la vecchia sezione delle due citta' ———
+   I due nomi e il surfista inciso sono usciti. La sezione puo' restare nel
+   Designer, ma non deve ne' vedersi ne' occupare spazio: il suo binario era
+   alto due schermate e mezzo e adesso sarebbe corsa vuota in fondo alla
+   pagina. Se preferisci, cancellala dal Designer e questa riga non serve
+   piu' — ma lasciandola non fa danno. */
+.cape-rilievo{ display:none !important; }
+
+/* ——— la tela della radura ———
+   Sopra quella della dust (.cape-dust-sky, che non ha z-index), dentro lo
+   stesso pannello incollato. Lo stile sta qui e non nel JavaScript per la
+   stessa ragione per cui ci sta quello della dust: se arrivasse dal codice,
+   per un fotogramma il canvas sarebbe 300x150 — la misura di default di un
+   canvas — e si vedrebbe un rettangolo comparire e poi allargarsi. */
+.cape-dust-stick .cape-radura-tela{
+  position:absolute; inset:0;
+  width:100%; height:100%;
+  display:block; z-index:2;
+  pointer-events:none;
+}
+
+/* ——— il ripiego sotto i 992 px ———
+   Li' non parte niente: niente WebGL, e soprattutto nessun puntatore da
+   seguire, e una goffratura che non si puo' scoprire e' solo peso scaricato
+   per niente. Al suo posto la stampa piatta in nero su bianco, che su un
+   telefono si legge meglio di un rilievo pallido.
+   Le due opacita' le scrive il JavaScript a scroll: partono da zero. */
+.cape-dust-stick .cape-radura-velo{
+  position:absolute; inset:0; z-index:2;
+  display:flex; align-items:center; justify-content:center;
+  background:#ffffff; opacity:0;
+  pointer-events:none;
+}
+.cape-dust-stick .cape-radura-piatta{
+  width:min(84vw, 58vh); height:auto; opacity:0;
+}
+</style> 

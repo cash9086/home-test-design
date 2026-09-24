@@ -1,0 +1,1349 @@
+<!-- ======================================================================
+     FOOTER DELLA HOME — due parti, e l'ordine qui e' quello vero
+     ----------------------------------------------------------------------
+     Il browser NON esegue dall'alto in basso. Esegue prima tutti gli script
+     senza `defer`, in ordine, e SOLO DOPO tutti quelli con `defer`, in
+     ordine. Prima questo file era mescolato, quindi spostare un blocco non
+     cambiava niente. Adesso le due parti sono separate: leggere dall'alto
+     in basso e' leggere l'ordine di esecuzione.
+
+     PARTE 1 — subito, mentre la pagina si monta. Sono gli script scritti
+               qui dentro (quelli scritti in pagina non possono avere
+               `defer`) piu' Lenis, che serve alla riga dopo.
+     PARTE 2 — dopo, a pagina montata. Tutti i file esterni, con `defer`.
+
+     REGOLA: se aggiungi un file esterno, va in PARTE 2 con `defer`, nel
+     punto in cui vuoi che giri. Se aggiungi codice scritto qui, va in
+     PARTE 1, in fondo.
+     ====================================================================== -->
+
+
+<!-- ======================================================================
+     PARTE 1 — SUBITO
+     ====================================================================== -->
+
+<script>
+/* ==========================================================================
+   capeScroll — un volante solo
+   --------------------------------------------------------------------------
+   Su questa pagina SEI codici spostano lo scroll: lo snap dell'orizzontale,
+   il muro d'ingresso del ponte, il suo snap, il muro d'uscita, la correzione
+   della intro quando sparisce, la planata sullo studio. Piu' il trascinamento
+   del binario a destra.
+
+   Prima ognuno aveva il suo cartellino privato "sto lavorando io" e nessuno
+   vedeva quello degli altri. Da li' venivano il rimbalzo all'ingresso del rig
+   (la intro rimetteva indietro lo scroll che il muro aveva appena messo a
+   posto) e il lampo bianco.
+
+   Qui il volante e' uno e si prenota. Chi lo tiene lo dice, chi lo vuole
+   chiede, e chi ha piu' diritto passa avanti.
+
+   COME SI USA
+   -----------
+   Una planata (rinunciabile):
+
+     if(!window.capeScroll || !capeScroll.prendi('io', capeScroll.SNAP)) return;
+     capeScroll.vaA('io', y, { duration:0.7, onComplete:function(){ capeScroll.molla('io'); } });
+     setTimeout(function(){ capeScroll.molla('io'); }, 1400);   // rete
+
+   Un muro (ferma chi arriva lanciato):
+
+     if(!capeScroll.prendi('muro', capeScroll.MURO)) return;
+     capeScroll.ferma('muro');
+     capeScroll.vaA('muro', y, { immediate:true });
+     setTimeout(function(){ capeScroll.molla('muro'); }, 380);  // molla e riaccende
+
+   LE PRECEDENZE, dalla piu' forte
+   -------------------------------
+     CORREZIONE  la pagina si e' accorciata, lo scroll DEVE seguirla
+     MANO        l'utente sta trascinando: comanda lui, sempre
+     MURO        una sezione ferma chi ci arriva lanciato
+     SNAP        una planata: bella, ma la prima a cedere
+
+   Chi tiene il volante non viene interrotto da chi vale meno o uguale. Da chi
+   vale di piu' si', e allora il suo onComplete non arriva mai: per questo ogni
+   chiamante molla ANCHE da un timeout di sicurezza. Mollare due volte non fa
+   niente, non mollare inchioda la pagina.
+
+   In console: capeScroll.stato()
+   ========================================================================== */
+(function(){
+  'use strict';
+
+  var SCADENZA = 2500;   /* nessuno tiene il volante piu' di cosi', mai */
+
+  var chi = null, liv = 0, scadT = null, fermoDa = null;
+
+  function azzera(){
+    chi = null; liv = 0;
+    clearTimeout(scadT); scadT = null;
+  }
+
+  var A = {
+    CORREZIONE: 4,
+    MANO:       3,
+    MURO:       2,
+    SNAP:       1,
+
+    chi:    function(){ return chi; },
+    libero: function(){ return chi === null; },
+
+    prendi: function(nome, livello){
+      livello = livello || A.SNAP;
+      /* c'e' gia' qualcuno che vale almeno quanto te: aspetta il tuo turno */
+      if(chi !== null && chi !== nome && livello <= liv) return false;
+      chi = nome; liv = livello;
+      clearTimeout(scadT);
+      /* rete: un blocco che si dimentica di mollare non puo' inchiodare
+         lo scroll per il resto della vita della pagina */
+      scadT = setTimeout(function(){ if(chi === nome) A.molla(nome); }, SCADENZA);
+      return true;
+    },
+
+    molla: function(nome){
+      if(nome && chi !== nome) return;   /* non e' piu' tuo: ti hanno superato */
+      if(fermoDa !== null) A.riparti(nome);
+      azzera();
+    },
+
+    /* Muove lo scroll. Prima il browser, che e' sincrono, poi Lenis, che
+       tiene un suo scroll interno e al proprio giro ci riporterebbe indietro.
+       L'ordine non e' un dettaglio: invertendolo resta un fotogramma disegnato
+       con la pagina in un posto e lo scroll in un altro — ed e' bianco. */
+    vaA: function(nome, y, opz){
+      if(nome && chi !== nome) return false;
+      opz = opz || {};
+      var L = window.lenis;
+      if(opz.immediate){
+        window.scrollTo(0, y);
+        if(L && L.scrollTo) L.scrollTo(y, { immediate:true, force:true });
+        return true;
+      }
+      if(L && L.scrollTo){ L.scrollTo(y, opz); return true; }
+      try{ window.scrollTo({ top:y, behavior:'smooth' }); }
+      catch(e){ window.scrollTo(0, y); }
+      if(opz.onComplete) setTimeout(opz.onComplete, (opz.duration || 0.7) * 1000);
+      return true;
+    },
+
+    ferma: function(nome){
+      if(nome && chi !== nome) return;
+      var L = window.lenis;
+      if(L && L.stop && !L.isStopped){ try{ L.stop(); fermoDa = nome || true; }catch(e){} }
+    },
+
+    riparti: function(nome){
+      if(nome && chi !== nome && fermoDa !== nome) return;
+      var L = window.lenis;
+      if(L && L.start){ try{ L.start(); }catch(e){} }
+      fermoDa = null;
+    },
+
+    stato: function(){
+      return { chi:chi, livello:liv, fermatoDa:fermoDa,
+               lenisFermo: !!(window.lenis && window.lenis.isStopped) };
+    }
+  };
+
+  window.capeScroll = A;
+})();
+</script>
+
+<script>
+/* ==========================================================================
+   capePatti — chi dipende da chi
+   --------------------------------------------------------------------------
+   I blocchi di questa pagina si parlano attraverso cose che non si vedono:
+   una classe messa da uno e letta da un altro, un oggetto appeso a window,
+   una proprieta' nascosta su un elemento. Sono accordi veri, ma non sono
+   scritti da nessuna parte: rinomini `is-ghost` e qualcosa smette di
+   funzionare senza un errore, senza un avviso, senza niente.
+
+   Qui ogni blocco dichiara in una riga cosa scrive e cosa legge. Poi, in
+   console, `capePatti()` elenca tutto e segnala i patti che stanno in piedi
+   su una gamba sola — quelli che si romperanno in silenzio.
+
+   COME SI DICHIARA, una riga per blocco:
+
+     window.capePatti && capePatti.dichiara('nome-del-blocco', {
+       scrivo: [['is-ghost', '.header-cape .cape-logo', 'a cosa serve']],
+       leggo:  ['window.lenis', 'window.capeScroll']
+     });
+
+   Ogni voce e' il nome del patto, oppure [nome, dove, a-cosa-serve]. I patti
+   che vivono su window si chiamano 'window.qualcosa': cosi' capePatti()
+   controlla anche se esistono davvero.
+
+   Dichiarare costa una riga e non fa NIENTE a runtime: e' solo memoria, e
+   non entra mai nel percorso di un'animazione.
+   ========================================================================== */
+(function(){
+  'use strict';
+
+  var P = {};
+
+  function voce(n){ return P[n] || (P[n] = { scrivono:[], leggono:[], dove:'', cosa:'' }); }
+
+  function aggiungi(lista, e, chi){
+    var n = e, dove = '', cosa = '';
+    if(Array.isArray(e)){ n = e[0]; dove = e[1] || ''; cosa = e[2] || ''; }
+    if(!n) return;
+    var v = voce(n);
+    if(dove) v.dove = dove;
+    if(cosa) v.cosa = cosa;
+    if(v[lista].indexOf(chi) < 0) v[lista].push(chi);
+  }
+
+  function API(){
+    var righe = [], zoppi = 0;
+    Object.keys(P).sort().forEach(function(n){
+      var v = P[n], guai = [];
+      if(!v.scrivono.length) guai.push('nessuno lo scrive');
+      if(!v.leggono.length)  guai.push('nessuno lo legge');
+      if(n.indexOf('window.') === 0){
+        if(typeof window[n.slice(7)] === 'undefined') guai.push('non esiste');
+      } else if(v.dove){
+        try{ if(!document.querySelector(v.dove)) guai.push('il bersaglio non c\'e\''); }catch(e){}
+      }
+      if(guai.length) zoppi++;
+      righe.push({
+        patto:    n,
+        stato:    guai.length ? '/!\\ ' + guai.join(' · ') : 'ok',
+        scrivono: v.scrivono.join(', ') || '—',
+        leggono:  v.leggono.join(', ')  || '—',
+        dove:     v.dove || '—',
+        cosa:     v.cosa || ''
+      });
+    });
+    try{ console.table(righe, ['patto','stato','scrivono','leggono','dove']); }catch(e){}
+    return { patti: righe.length, zoppi: zoppi, righe: righe };
+  }
+
+  API.dichiara = function(chi, d){
+    if(!d) return;
+    var i, s = d.scrivo || [], l = d.leggo || [];
+    for(i = 0; i < s.length; i++) aggiungi('scrivono', s[i], chi);
+    for(i = 0; i < l.length; i++) aggiungi('leggono',  l[i], chi);
+  };
+
+  window.capePatti = API;
+})();
+
+/* Chi parla per il foglio di stile della head, che da solo non puo'. */
+capePatti.dichiara('head — foglio di stile', {
+  leggo: [['is-armed', '.cape-rise', 'il ritaglio che tiene nascosto il testo della tendina'],
+          ['is-ponte', '.cape-hs-track .image-14', 'spegne la foto della slide mentre il ponte la copre'],
+          ['is-night', '.cape-hs-track', 'porta al nero le slide dell\'orizzontale']]
+});
+
+capePatti.dichiara('arbitro dello scroll', {
+  scrivo: [['window.capeScroll', '', 'il volante unico: chi non ce l\'ha non sposta lo scroll']],
+  leggo:  ['window.lenis']
+});
+</script>
+
+
+<!-- Lenis: smooth scroll (desktop, no reduced-motion, no Firefox) -->
+<style>
+  html.lenis, html.lenis body{ height:auto; }
+  .lenis.lenis-smooth{ scroll-behavior:auto !important; }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/lenis@1.1.18/dist/lenis.min.js"></script>
+<script>
+(function(){
+  'use strict';
+
+  function anchors(scrollTo){
+    document.addEventListener('click', function(e){
+      var a = e.target.closest && e.target.closest('a[href^="#"]');
+      if(!a) return;
+      var href = a.getAttribute('href');
+      if(!href || href === '#') return;
+      var t = null;
+      try{ t = document.querySelector(href); }catch(err){ return; }
+      if(!t) return;
+      e.preventDefault();
+      scrollTo(t);
+    });
+  }
+
+  var narrow   = window.innerWidth < 992;
+  var reduced  = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var firefox  = navigator.userAgent.indexOf('Firefox') > -1;
+
+  if(narrow || reduced || firefox || typeof Lenis === 'undefined'){
+    anchors(function(t){ t.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block:'start' }); });
+    return;
+  }
+
+  document.documentElement.classList.add('lenis');
+
+  var lenis = new Lenis({
+    autoRaf: true,
+    duration: 1.2,
+    easing: function(t){ return Math.min(1, 1.001 - Math.pow(2, -10 * t)); },
+    orientation: 'vertical',
+    gestureOrientation: 'vertical',
+    smoothWheel: true,
+    wheelMultiplier: 1,
+    touchMultiplier: 2
+  });
+
+  window.lenis = lenis;
+  anchors(function(t){ lenis.scrollTo(t, { offset:0 }); });
+
+  window.capePatti && capePatti.dichiara('lenis', {
+    scrivo: [['window.lenis', '', 'lo scroll morbido: esiste solo da 992px in su, senza reduced-motion e fuori da Firefox']]
+  });
+})();
+</script>
+
+<!-- scroll orizzontale -->
+<script>
+(function(){
+  'use strict';
+
+  var SPAN_VH    = 1.20;
+  var EDGE_SNAP  = true;
+  var SNAP_DELAY = 16;
+  var GAP_W      = -4;
+  var GAP_B      = -13.5;
+
+  var wrap  = document.querySelector('.cape-hs-wrap'),
+      stick = document.querySelector('.cape-hs-sticky'),
+      track = document.querySelector('.cape-hs-track'),
+      palm  = document.querySelector('.cape-hs-palm');
+
+  if(!wrap || !track) return;
+  if(!stick) stick = track.parentNode;
+
+  var reduced = false;
+  try{ reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches; }catch(e){}
+
+  function clamp01(v){ return v < 0 ? 0 : (v > 1 ? 1 : v); }
+
+  var SKIP = 'a, button, .w-button, .button, .white-bubble-btn, .button-hover-circle, .cape-rise';
+
+  function reveal(){
+    var nodes = track.querySelectorAll('section, section *, .cape-leaves-top, .cape-leaves-top *');
+    for(var i = 0; i < nodes.length; i++){
+      var el = nodes[i], st = el.style;
+      if(!st) continue;
+      if(el.closest && el.closest(SKIP)) continue;
+      if(st.opacity === '0') st.removeProperty('opacity');
+      if(st.visibility === 'hidden') st.removeProperty('visibility');
+      if(st.transform && st.transform !== 'none') st.removeProperty('transform');
+    }
+  }
+
+  reveal();
+  setTimeout(reveal, 400);
+  setTimeout(reveal, 1200);
+
+  try{
+    var moPending = false;
+    var mo = new MutationObserver(function(){
+      if(moPending) return;
+      moPending = true;
+      requestAnimationFrame(function(){ moPending = false; reveal(); });
+    });
+    mo.observe(track, { subtree:true, attributes:true, attributeFilter:['style'] });
+    setTimeout(function(){ try{ mo.disconnect(); }catch(e){} }, 4000);
+  }catch(e){}
+
+  var vh = 0, vw = 0, span = 1, palmW = 0, wrapH = 0, night = false, lastH = -1;
+
+    function misura(){
+    vh   = window.innerHeight;
+    vw   = window.innerWidth;
+    span = SPAN_VH * vh;
+    if(palm){
+      var pw = palm.getBoundingClientRect().width;
+      if(pw > 0) palmW = pw;
+    }
+    var need = Math.round(stick.offsetHeight + span);
+    if(Math.abs(wrapH - need) > 2){
+      wrapH = need;
+      wrap.style.height = need + 'px';
+    }
+  }
+
+  function render(){
+    var h = clamp01(-wrap.getBoundingClientRect().top / span);
+    if(h === lastH) return;
+    lastH = h;
+
+    track.style.transform = 'translateX(' + (-h * 100) + 'vw)';
+
+    if(palm && palmW > 0){
+      var gw  = vw * GAP_W / 100, gb = vw * GAP_B / 100;
+      var cx0 = vw - palmW / 2 - gw, cx1 = palmW / 2 + gb;
+      var cx  = h < 0.5 ? cx0 + (vw / 2 - cx0) * (h / 0.5)
+                        : vw / 2 + (cx1 - vw / 2) * ((h - 0.5) / 0.5);
+      palm.style.transform = 'translateX(calc(-50% + ' + (cx + h * vw - vw) + 'px))';
+    }
+
+    var n = h >= 0.5;
+    if(n !== night){ night = n; track.classList.toggle('is-night', n);
+      if(n) stick.setAttribute('data-hdr','dark'); else stick.removeAttribute('data-hdr'); }
+  }
+
+  var vivo = false, girando = false;
+
+  function loop(){
+    if(!vivo){ girando = false; return; }
+    render();
+    requestAnimationFrame(loop);
+  }
+
+  misura();
+  render();
+
+  window.addEventListener('load', function(){ reveal(); misura(); lastH = -1; render(); });
+
+  new IntersectionObserver(function(es){
+    vivo = es[0].isIntersecting;
+    if(vivo){
+      misura();
+      if(!girando){ girando = true; requestAnimationFrame(loop); }
+    }
+  }, { rootMargin:'100% 0px' }).observe(wrap);
+
+  var rT = null;
+  window.addEventListener('resize', function(){
+    clearTimeout(rT);
+    rT = setTimeout(function(){ misura(); lastH = -1; render(); }, 150);
+  }, { passive:true });
+
+  function snapTarget(){
+
+    var ib = document.querySelector('.ink-pin');
+    if(ib && ib.getBoundingClientRect().top <= 1) return null;
+
+    var st = document.querySelector('.studio-hero');
+    if(st && st.getBoundingClientRect().top < vh * 0.5) return null;
+
+
+    var y     = window.scrollY || window.pageYOffset;
+    var start = wrap.getBoundingClientRect().top + y;
+    var end   = start + span;
+    var edge  = vh * 0.28;
+
+    if(y >= start - 6 && y <= start + edge) return start;
+    if(y >= end - edge && y <= end + edge * 1.6) return end;
+    return null;
+  }
+
+  var snapT = null, snapping = false;
+  var VOLANTE = 'snap-orizzontale';
+
+  function done(){
+    if(!snapping) return;
+    snapping = false;
+    if(window.capeScroll) capeScroll.molla(VOLANTE);
+  }
+
+  function doSnap(){
+    if(snapping || !vivo) return;
+    var tgt = snapTarget();
+    if(tgt === null) return;
+    var y = window.scrollY || window.pageYOffset;
+    if(Math.abs(tgt - y) < 6) return;
+
+    /* Una planata e' la prima cosa a cui si rinuncia. Se il volante e' in
+       mano a un muro o a una correzione si lascia perdere: meglio nessuno
+       snap che due codici che si strappano lo scroll a vicenda. */
+    if(!window.capeScroll || !capeScroll.prendi(VOLANTE, capeScroll.SNAP)) return;
+
+    snapping = true;
+    capeScroll.vaA(VOLANTE, tgt, {
+      duration: 0.7,
+      easing: function(t){ return 1 - Math.pow(1 - t, 3); },
+      onComplete: done
+    });
+    setTimeout(done, 1400);   /* rete: se il volante ci viene tolto, onComplete non arriva */
+  }
+
+  function onScroll(){
+    if(snapping) return;
+    clearTimeout(snapT);
+    var yPrima = window.scrollY || window.pageYOffset;
+    snapT = setTimeout(function(){
+      if((window.scrollY || window.pageYOffset) !== yPrima) return;
+      doSnap();
+    }, SNAP_DELAY);
+  }
+
+  function bindSnap(tries){
+    if(reduced) return;
+    if(window.lenis){ window.lenis.on('scroll', onScroll); return; }
+    if(tries < 40){ setTimeout(function(){ bindSnap(tries + 1); }, 200); return; }
+    window.addEventListener('scroll', onScroll, { passive:true });
+  }
+
+  if(EDGE_SNAP) bindSnap(0);
+
+  window.capePatti && capePatti.dichiara('scroll orizzontale', {
+    scrivo: [['data-hdr', '.cape-hs-sticky', 'dice alla barra che sotto e\' passato il nero']],
+    leggo:  ['window.capeScroll']
+  });
+})();
+</script>
+
+<!-- cursore: logo che si chiude in un punto, con magnetismo -->
+<style>
+#capecur{position:fixed;top:0;left:0;width:0;height:0;z-index:2147483647;pointer-events:none;opacity:0;will-change:transform;
+  --cc:#141416 !important}            /* fondo chiaro -> cursore scuro (partenza) */
+#capecur.su-scuro{ --cc:#fff !important; }   /* fondo scuro -> cursore bianco */
+#capecur>*{position:absolute;top:0;left:0;transform:translate(-50%,-50%)}
+#capecur svg{height:auto;overflow:visible}
+#capecur svg path{ fill:var(--cc); transition:fill .18s linear; }
+#capecur .cc-ring{border:1.6px solid var(--cc);border-radius:50%;width:1px;height:1px;opacity:0;
+background:transparent;transition:border-color .18s linear,background-color .18s linear}
+#capecur.su-punto .cc-ring{ background:var(--cc); border-color:transparent; }   /* sopra un pulsante: punto pieno */
+#capecur .cc-label{color:var(--cc);transition:color .18s linear;font:600 11px/1 Jost,system-ui,sans-serif;letter-spacing:.16em;text-transform:uppercase;white-space:nowrap;opacity:0}
+@media (min-width:992px) and (hover:hover){ html.capecur-on, html.capecur-on *{cursor:none!important} }
+</style>
+
+
+<div id="capecur"><svg viewBox="230 228 1097 461"><path></path></svg><div class="cc-ring"></div><span class="cc-label"></span></div>
+<!-- il codice del cursore e' uscito di qui: pesava tredicimila caratteri.
+     Adesso sta in PARTE 2, su GitHub. Il contenitore e lo stile restano
+     qui sopra, perche' devono essere nel documento prima che parta. -->
+
+<!-- Planata: centra la sezione studio quando lo scroll si ferma vicino -->
+<script>
+(function(){
+  var SEL       = '.studio-hero';
+  var NAV       = '.header-cape';
+  var RIG       = '.cape-hs-wrap';
+  var NAV_PX    = 0;
+  var NAV_CLEAR = 0.5;
+  var IDLE      = 16;
+  var STABLE    = 120;
+  var GLIDE     = 0.7;
+  var COOLDOWN  = 900;
+  var DEADBAND  = 24;
+  var MIN_W     = 992;
+
+  var sec = document.querySelector(SEL);
+  if(!sec) return;
+
+  var reduced = false;
+  try{ reduced = matchMedia('(prefers-reduced-motion: reduce)').matches; }catch(e){}
+  if(reduced) return;
+
+  var timer = null, busy = false, cooldownUntil = 0, retried = false;
+
+  function y(){ return window.scrollY || window.pageYOffset; }
+  function docH(){ return document.documentElement.scrollHeight; }
+  function maxScroll(){ return Math.max(0, docH() - window.innerHeight); }
+
+  function navH(){
+    if(NAV_PX > 0) return NAV_PX;
+    var n = document.querySelector(NAV);
+    if(!n) return 0;
+    var cs = getComputedStyle(n);
+    if(cs.position !== 'fixed' && cs.position !== 'sticky') return 0;
+    if(cs.display === 'none' || cs.visibility === 'hidden') return 0;
+    var r = n.getBoundingClientRect();
+    return (r.top < 2 && r.height > 0) ? r.height : 0;
+  }
+
+  function centre(){ return window.innerHeight / 2 + navH() * NAV_CLEAR; }
+
+  function target(){
+    var r = sec.getBoundingClientRect();
+    return Math.min(maxScroll(), Math.max(0, y() + r.top + r.height / 2 - centre()));
+  }
+
+   function mine(){
+    if(document.documentElement.classList.contains('is-consegna')) return false;
+    var vh = window.innerHeight, r = sec.getBoundingClientRect();
+
+    if(!(r.top < vh * 0.5 && r.bottom > vh * 0.5)) return false;
+    var w = document.querySelector(RIG);
+    if(w && w.getBoundingClientRect().bottom > 8) return false;
+    return true;
+  }
+
+  var VOLANTE = 'planata-studio';
+
+  function done(){
+    busy = false;
+    cooldownUntil = Date.now() + COOLDOWN;
+    if(window.capeScroll) capeScroll.molla(VOLANTE);
+  }
+
+  function settle(){
+    if(!busy) return;
+    done();
+    var d = target() - y();
+    if(Math.abs(d) > DEADBAND && !retried && mine()){
+      retried = true;
+      cooldownUntil = 0;
+      setTimeout(glide, 80);
+    } else {
+      retried = false;
+    }
+  }
+
+  function glide(){
+    if(busy || !mine()) return;
+    var t = target(), d = t - y();
+    if(Math.abs(d) < DEADBAND){ retried = false; return; }
+
+    /* Anche questa e' una planata: cede a tutto il resto. */
+    if(!window.capeScroll || !capeScroll.prendi(VOLANTE, capeScroll.SNAP)) return;
+
+    busy = true;
+    capeScroll.vaA(VOLANTE, t, {
+      duration: GLIDE,
+      easing: function(x){ return 1 - Math.pow(1 - x, 3); },
+      onComplete: settle
+    });
+    setTimeout(function(){ if(busy) settle(); }, GLIDE * 1000 + 700);
+  }
+
+  function attempt(){
+    if(busy || Date.now() < cooldownUntil) return;
+    if(window.innerWidth < MIN_W) return;
+    if(!mine()) return;
+    var y0 = y(), h0 = docH();
+    setTimeout(function(){
+      if(busy || Date.now() < cooldownUntil) return;
+      if(y() !== y0 || docH() !== h0) return;
+      glide();
+    }, STABLE);
+  }
+
+  function abort(){
+    if(!busy) return;
+    busy = false;
+    retried = false;
+    cooldownUntil = Date.now() + 400;
+    /* L'utente ha messo mano alla rotella: si pianta la planata dov'e' e si
+       molla subito il volante, cosi' chiunque altro serva puo' prenderlo. */
+    if(window.capeScroll){
+      capeScroll.vaA(VOLANTE, y(), { immediate:true });
+      capeScroll.molla(VOLANTE);
+    }
+  }
+
+  ['wheel','touchstart','keydown'].forEach(function(ev){
+    window.addEventListener(ev, abort, { passive:true });
+  });
+
+  function onScroll(){
+    if(busy) return;
+    clearTimeout(timer);
+    timer = setTimeout(attempt, IDLE);
+  }
+
+  window.addEventListener('scroll', onScroll, { passive:true });
+  window.addEventListener('resize', function(){ clearTimeout(timer); }, { passive:true });
+
+  window.capePatti && capePatti.dichiara('planata studio', {
+    leggo: ['window.capeScroll',
+            ['is-consegna', 'html', 'mentre l\'inchiostro consegna il titolo allo slider, la planata sta ferma']]
+  });
+})();
+</script>
+
+<!-- Tendina: titoli, testi e bottoni salgono da dietro il proprio bordo -->
+<script>
+(function(){
+  var SECTIONS = '.cape-hs-track > section';
+  var TARGETS  = [
+    '.display-26.sottotitolo:not(.testo-piccolo)',
+    '.testo-piccolo',
+    '.testo-scroll',
+    '.link-uni'
+  ];
+  var PER_LINE = '.testo-scroll';
+  var BTN_SEL  = 'a, button, .w-button, .link-uni';
+
+  var DUR      = 1000;
+  var STAGGER  = 150;
+  var LINE_GAP = 90;
+  var START_V  = 0.80;
+  var START_H  = 0.78;
+  var BTN_RISE = 20;
+  var EASE     = 'cubic-bezier(.16,1,.3,1)';
+
+  var reduced = false;
+  try{ reduced = matchMedia('(prefers-reduced-motion: reduce)').matches; }catch(e){}
+
+  var sections = Array.prototype.slice.call(document.querySelectorAll(SECTIONS));
+  if(!sections.length || reduced) return;
+
+  var resizeT = null, watching = false;
+
+  function laidOut(el){
+    return !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length);
+  }
+
+  /* Di quanto scendere per sparire DAVVERO.
+
+     Prima era il 110% della propria altezza. Ma il ritaglio che nasconde e'
+     il riquadro del GENITORE, e quel ritaglio sborda di 0.14em sotto. Con
+     l'interlinea 1.4 di queste classi i due numeri coincidono al millesimo
+     — 1.10 x 1.4 = 1.54, e 1.4 + 0.14 = 1.54 — quindi il testo si nascondeva
+     esattamente sul filo: bastava un pixel di arrotondamento, o un
+     contenitore un po' piu' alto del testo, e se ne vedeva la cima.
+
+     Invece di rifare quel conto a percentuali si misura il riquadro vero e
+     si scende di un quarto in piu', con un dito di margine. Se la misura non
+     si puo' fare, si ripiega su una percentuale comunque piu' generosa. */
+  function giu(w){
+    var h = 0;
+    try{
+      var box = w.parentNode;
+      h = Math.max(box ? box.getBoundingClientRect().height : 0,
+                   w.getBoundingClientRect().height);
+    }catch(e){}
+    return h > 0 ? Math.ceil(h * 1.25 + 12) + 'px' : '135%';
+  }
+
+  function maskInside(el){
+    var w = document.createElement('span');
+    w.className = 'cape-ln';
+    while(el.firstChild) w.appendChild(el.firstChild);
+    el.appendChild(w);
+    el.classList.add('cape-rise', 'is-armed');
+    return w;
+  }
+
+  function riseInPlace(el){
+    if(el._capeTr === undefined) el._capeTr = el.style.transition || '';
+    el.style.transition = 'none';
+    el.style.transform  = 'translateY(' + BTN_RISE + 'px)';
+    el.style.opacity    = '0';
+    return el;
+  }
+
+  function maskLines(p){
+    var text = p.textContent;
+    p.textContent = '';
+    var words = text.trim().split(/\s+/), probes = [];
+
+    words.forEach(function(word, i){
+      var s = document.createElement('span');
+      s.textContent = word;
+      p.appendChild(s);
+      probes.push(s);
+      if(i < words.length - 1) p.appendChild(document.createTextNode(' '));
+    });
+
+    var rows = [], last = null;
+    probes.forEach(function(s, i){
+      var top = Math.round(s.offsetTop);
+      if(last === null || top - last > 2){ last = top; rows.push([]); }
+      rows[rows.length - 1].push(words[i]);
+    });
+
+    p.textContent = '';
+    return rows.map(function(r){
+      var box = document.createElement('span');
+      box.className = 'cape-rise is-armed';
+      box.style.display = 'block';
+      var w = document.createElement('span');
+      w.className = 'cape-ln';
+      w.textContent = r.join(' ');
+      box.appendChild(w);
+      p.appendChild(box);
+      return w;
+    });
+  }
+
+  function unbuild(sec){
+    Array.prototype.forEach.call(sec.querySelectorAll('.cape-rise'), function(box){
+      var w = box.querySelector(':scope > .cape-ln');
+      if(!w) return;
+      while(w.firstChild) box.insertBefore(w.firstChild, w);
+      box.removeChild(w);
+      box.classList.remove('cape-rise', 'is-armed');
+      box.style.removeProperty('display');
+    });
+
+    Array.prototype.forEach.call(sec.querySelectorAll('[data-cape-text]'), function(p){
+      p.textContent = p.getAttribute('data-cape-text');
+    });
+
+    TARGETS.forEach(function(sel){
+      Array.prototype.forEach.call(sec.querySelectorAll(sel), function(el){
+        if(!el.matches(BTN_SEL)) return;
+        el.style.removeProperty('transform');
+        el.style.removeProperty('opacity');
+        if(el._capeTr) el.style.transition = el._capeTr;
+        else el.style.removeProperty('transition');
+      });
+    });
+
+    sec._capeAnchor = null;
+  }
+
+  function build(sec){
+    var slides = [], anchor = null;
+
+    TARGETS.forEach(function(sel){
+      Array.prototype.forEach.call(sec.querySelectorAll(sel), function(el){
+        if(!laidOut(el)) return;
+        if(!anchor) anchor = el;
+
+        if(sel === PER_LINE){
+          if(!el.hasAttribute('data-cape-text')) el.setAttribute('data-cape-text', el.textContent);
+          maskLines(el).forEach(function(w){ slides.push({ w:w, line:true }); });
+        } else if(el.matches(BTN_SEL)){
+          slides.push({ w:riseInPlace(el), line:false, btn:true });
+        } else {
+          slides.push({ w:maskInside(el), line:false });
+        }
+      });
+    });
+
+    sec._capeSlides = slides;
+    sec._capeAnchor = anchor;
+    slides.forEach(function(s){ if(!s.btn) s.w.style.transform = 'translateY(' + giu(s.w) + ')'; });
+    return slides;
+  }
+
+  function play(sec){
+    var slides = sec._capeSlides || [];
+    var delay = 0, prevLine = false;
+
+    slides.forEach(function(s, i){
+      delay += (i === 0) ? 0 : (s.line && prevLine ? LINE_GAP : STAGGER);
+      prevLine = s.line;
+
+      var frames = s.btn
+        ? [{ transform:'translateY(' + BTN_RISE + 'px)', opacity:0 }, { transform:'translateY(0)', opacity:1 }]
+        : [{ transform:'translateY(' + giu(s.w) + ')' }, { transform:'translateY(0)' }];
+
+      var a = s.w.animate(frames, { duration:DUR, delay:delay, easing:EASE, fill:'both' });
+
+      a.onfinish = function(){
+        s.w.style.removeProperty('transform');
+        s.w.style.removeProperty('opacity');
+        if(s.btn){
+          if(s.w._capeTr) s.w.style.transition = s.w._capeTr;
+          else s.w.style.removeProperty('transition');
+        }
+        try{ a.cancel(); }catch(e){}
+        var box = s.w.parentNode;
+        if(box) box.classList.remove('is-armed');
+      };
+    });
+
+    sec._capeDone = true;
+  }
+
+  function settle(sec){
+    (sec._capeSlides || []).forEach(function(s){
+      s.w.style.removeProperty('transform');
+      s.w.style.removeProperty('opacity');
+      if(s.w.parentNode) s.w.parentNode.classList.remove('is-armed');
+    });
+  }
+
+  function ready(sec){
+    var a = sec._capeAnchor;
+    if(!a) return false;
+    var r = a.getBoundingClientRect();
+    if(!r.width && !r.height) return false;
+    var vh = window.innerHeight || document.documentElement.clientHeight;
+    var vw = window.innerWidth  || document.documentElement.clientWidth;
+    var cx = (r.left + r.right) / 2;
+    return r.top < vh * START_V && r.bottom > 0 && cx < vw * START_H && cx > 0;
+  }
+
+  function watch(){
+    if(watching) return;
+    watching = true;
+    (function loop(){
+      var pending = false;
+      sections.forEach(function(sec){
+        if(sec._capeDone) return;
+        if(!sec._capeAnchor || !(sec._capeSlides && sec._capeSlides.length)) return;
+        if(ready(sec)) play(sec);
+        else pending = true;
+      });
+      if(pending) requestAnimationFrame(loop);
+      else watching = false;
+    })();
+  }
+
+  function setup(){
+    sections.forEach(function(sec){
+      unbuild(sec);
+      build(sec);
+      /* _capeDone vuol dire due cose diverse nei due script che si
+         occupano di questa tendina. Qui significa "ha gia' giocato,
+         lasciala scoperta". Nel riarmo di .cape-hs-wrap, la' sotto,
+         significa "non toccarla, ci penso io" — e lo mette anche su una
+         sezione appena armata, che non ha giocato per niente.
+
+         Senza distinguere i due casi, questo settle() scopriva il testo
+         di una sezione che il riarmo teneva nascosta apposta: lo vedevi
+         salire con lo scroll, gia' visibile, e solo dopo partiva la
+         tendina. _riArmata e' l'unico posto in cui la differenza e'
+         scritta, quindi si guarda quello. */
+      if(sec._capeDone && !sec._riArmata) settle(sec);
+    });
+    watch();
+  }
+
+  window.capePatti && capePatti.dichiara('tendina', {
+    scrivo: [['tendina-righe', '.cape-hs-track > section',
+              'le righe costruite sulle sezioni (_capeSlides, _capeAnchor, _capeDone) — il riarmo le riusa']],
+    leggo:  ['tendina-righe']
+  });
+
+  setup();
+  if(document.fonts && document.fonts.ready) document.fonts.ready.then(setup);
+  addEventListener('resize', function(){
+    clearTimeout(resizeT);
+    resizeT = setTimeout(setup, 180);
+  }, { passive:true });
+})();
+</script>
+
+<!-- header: contrasto automatico sul fondo -->
+<script>
+(function(){
+  var BAR = document.querySelector('.header-cape');
+  if(!BAR) return;
+
+  var TO_LIGHT = 0.45;
+  var TO_DARK  = 0.60;
+  var CODA     = [150, 420, 800];
+  var QUIETE   = 120;
+  var invert   = null;
+
+  function lum(r, g, b){
+    var a = [r, g, b].map(function(v){
+      v /= 255;
+      return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+    });
+    return 0.2126 * a[0] + 0.7152 * a[1] + 0.0722 * a[2];
+  }
+
+  function forced(y){
+    var hit = null, list = document.querySelectorAll('[data-hdr]');
+    for(var i = 0; i < list.length; i++){
+      var r = list[i].getBoundingClientRect();
+      if(r.height && r.top <= y && r.bottom >= y) hit = list[i];
+    }
+    return hit;
+  }
+
+  function probe(x, y){
+    var stack = document.elementsFromPoint(x, y);
+    for(var i = 0; i < stack.length; i++){
+      var el = stack[i];
+      if(BAR === el || BAR.contains(el)) continue;
+      var m = getComputedStyle(el).backgroundColor.match(/[\d.]+/g);
+      if(!m) continue;
+      if(m.length > 3 && parseFloat(m[3]) < 0.5) continue;
+      return lum(+m[0], +m[1], +m[2]);
+    }
+    return 1;
+  }
+
+  function measure(){
+    var r = BAR.getBoundingClientRect();
+    if(!r.height) return;
+
+    var y = Math.min(Math.max(r.top + r.height / 2, 1), innerHeight - 1);
+    var next, tag = forced(y);
+
+    if(tag){
+      next = tag.getAttribute('data-hdr') === 'dark';
+    } else {
+      var L = (probe(r.left + r.width * 0.125, y)
+             + probe(r.left + r.width * 0.5,   y)
+             + probe(r.left + r.width * 0.875, y)) / 3;
+      next = invert;
+      if(L < TO_LIGHT)          next = true;
+      else if(L > TO_DARK)      next = false;
+      else if(invert === null)  next = L < 0.5;
+    }
+
+    if(next !== invert){ invert = next; BAR.classList.toggle('hdr-invert', invert); }
+  }
+
+  var queued = false;
+  function tick(){
+    if(queued || document.hidden) return;
+    queued = true;
+    requestAnimationFrame(function(){ queued = false; measure(); });
+  }
+
+  var codaT = [], quieteT = null;
+
+  function coda(){
+    codaT.forEach(clearTimeout);
+    codaT = CODA.map(function(ms){ return setTimeout(tick, ms); });
+  }
+
+  function muoviti(){
+    tick();
+    clearTimeout(quieteT);
+    quieteT = setTimeout(coda, QUIETE);
+  }
+
+  addEventListener('scroll', muoviti, { passive:true });
+  addEventListener('resize', muoviti, { passive:true });
+  addEventListener('load',   muoviti);
+
+  document.addEventListener('visibilitychange', function(){
+    if(!document.hidden) muoviti();
+  });
+
+  if(document.fonts && document.fonts.ready) document.fonts.ready.then(muoviti, function(){});
+
+  window.capePatti && capePatti.dichiara('contrasto della barra', {
+    leggo: [['data-hdr', '', 'quando un elemento lo porta, decide lui invece della misura del colore']]
+  });
+
+  muoviti();
+})();
+</script>
+
+<!-- riarmo della tendina: DEVE restare dopo il blocco Tendina qui sopra,
+     perche' riusa le righe che quello ha costruito -->
+<script>/* .cape-hs-wrap : la tendina si riarma a ogni passaggio */
+(function(){
+  'use strict';
+  var DUR      = 1000;
+  var STAGGER  = 150;
+  var LINE_GAP = 90;
+  var BTN_RISE = 20;
+  var START_V  = 0.80;
+  var START_H  = 0.78;
+  var EASE     = 'cubic-bezier(.16,1,.3,1)';
+  var rig     = document.querySelector('.cape-hs-wrap');
+  var sezioni = [].slice.call(document.querySelectorAll('.cape-hs-track > section'));
+  if(!rig || !sezioni.length) return;
+  var ridotto = false;
+  try{ ridotto = matchMedia('(prefers-reduced-motion: reduce)').matches; }catch(e){}
+  if(ridotto) return;
+
+  /* Di quanto scendere per sparire DAVVERO.
+
+     Prima era il 110% della propria altezza. Ma il ritaglio che nasconde e'
+     il riquadro del GENITORE, e quel ritaglio sborda di 0.14em sotto. Con
+     l'interlinea 1.4 di queste classi i due numeri coincidono al millesimo
+     — 1.10 x 1.4 = 1.54, e 1.4 + 0.14 = 1.54 — quindi il testo si nascondeva
+     esattamente sul filo: bastava un pixel di arrotondamento, o un
+     contenitore un po' piu' alto del testo, e se ne vedeva la cima.
+
+     Invece di rifare quel conto a percentuali si misura il riquadro vero e
+     si scende di un quarto in piu', con un dito di margine. Se la misura non
+     si puo' fare, si ripiega su una percentuale comunque piu' generosa. */
+  function giu(w){
+    var h = 0;
+    try{
+      var box = w.parentNode;
+      h = Math.max(box ? box.getBoundingClientRect().height : 0,
+                   w.getBoundingClientRect().height);
+    }catch(e){}
+    return h > 0 ? Math.ceil(h * 1.25 + 12) + 'px' : '135%';
+  }
+  function arma(sec){
+    (sec._riCorse || []).forEach(function(a){ try{ a.cancel(); }catch(e){} });
+    sec._riCorse = [];
+    var slides = sec._capeSlides || [];
+    if(!slides.length) return;
+    slides.forEach(function(s){
+      if(s.btn){
+        s.w.style.transition = 'none';
+        s.w.style.transform  = 'translateY(' + BTN_RISE + 'px)';
+        s.w.style.opacity    = '0';
+      } else {
+        s.w.style.transform = 'translateY(' + giu(s.w) + ')';
+        if(s.w.parentNode) s.w.parentNode.classList.add('is-armed');
+      }
+    });
+    sec._capeDone  = true;
+    sec._riArmata  = true;
+  }
+  function gioca(sec){
+    if(!sec._riArmata) return;
+    sec._riArmata = false;
+    var slides = sec._capeSlides || [];
+    var delay = 0, prevLine = false;
+    sec._riCorse = [];
+    slides.forEach(function(s, i){
+      delay += (i === 0) ? 0 : (s.line && prevLine ? LINE_GAP : STAGGER);
+      prevLine = s.line;
+      if(!s.btn && s.w.parentNode) s.w.parentNode.classList.add('is-armed');
+      var frames = s.btn
+        ? [{ transform:'translateY(' + BTN_RISE + 'px)', opacity:0 },
+           { transform:'translateY(0)', opacity:1 }]
+        : [{ transform:'translateY(' + giu(s.w) + ')' }, { transform:'translateY(0)' }];
+      var a = s.w.animate(frames, { duration:DUR, delay:delay, easing:EASE, fill:'both' });
+      sec._riCorse.push(a);
+      a.onfinish = function(){
+        s.w.style.removeProperty('transform');
+        s.w.style.removeProperty('opacity');
+        if(s.btn) s.w.style.removeProperty('transition');
+        try{ a.cancel(); }catch(e){}
+        var box = s.w.parentNode;
+        if(box) box.classList.remove('is-armed');
+      };
+    });
+  }
+  function pronta(sec){
+    var a = sec._capeAnchor;
+    if(!a) return false;
+    var r = a.getBoundingClientRect();
+    if(!r.width && !r.height) return false;
+    var vh = window.innerHeight || document.documentElement.clientHeight;
+    var vw = window.innerWidth  || document.documentElement.clientWidth;
+    var cx = (r.left + r.right) / 2;
+    return r.top < vh * START_V && r.bottom > 0 && cx < vw * START_H && cx > 0;
+  }
+  /* Fuori vuol dire: l'ancora e' COMPLETAMENTE oltre un bordo dello schermo.
+     Non basta che sia uscita dalla soglia di partenza — li' scorrendo piano
+     partirebbe e si riarmerebbe a singhiozzo sul confine. */
+  function fuori(sec){
+    var a = sec._capeAnchor;
+    if(!a) return false;
+    var r = a.getBoundingClientRect();
+    if(!r.width && !r.height) return false;
+    var vw = window.innerWidth || document.documentElement.clientWidth;
+    return r.right < 0 || r.left > vw;
+  }
+
+  var dentro = false, atteso = false;
+
+  /* Una passata per fotogramma, e solo mentre il rig e' a tiro: due
+     rettangoli letti, niente scritto.
+
+     Prima girava un ciclo che si spegneva appena TUTTE avevano giocato, e
+     nessuno le rimetteva piu' finche' non uscivi dall'intero rig: e' per
+     questo che tornando indietro su una sezione gia' vista il testo era li'
+     fermo, senza tendina. Adesso ognuna si riarma da sola appena esce di
+     scena, quindi la tendina c'e' ogni volta che rientra. */
+  function passa(){
+    atteso = false;
+    if(!dentro) return;
+    for(var i = 0; i < sezioni.length; i++){
+      var sec = sezioni[i];
+      if(sec._riArmata){ if(pronta(sec)) gioca(sec); }
+      else if(fuori(sec)) arma(sec);
+    }
+  }
+
+  function suScroll(){
+    if(atteso || !dentro) return;
+    atteso = true;
+    requestAnimationFrame(passa);
+  }
+
+  addEventListener('scroll', suScroll, { passive:true });
+
+  new IntersectionObserver(function(es){
+    dentro = es[0].isIntersecting;
+    if(dentro) passa();
+    else sezioni.forEach(arma);
+  }, { rootMargin:'0px' }).observe(rig);
+
+  window.capePatti && capePatti.dichiara('riarmo della tendina', {
+    scrivo: ['tendina-righe'],
+    leggo:  ['tendina-righe']
+  });
+})();
+</script>
+
+
+
+
+<!-- barra: esce a scalini scendendo, rientra a scalini salendo -->
+<script>
+(function(){
+  'use strict';
+
+  var DUR    = 620;   /* quanto dura il volo di un pezzo                     */
+  var PASSO  = 140;   /* ritardo fra un pezzo e il successivo: e' lo scalino */
+  var SOGLIA = 6;     /* sotto questo movimento non si decide niente         */
+  var CIMA   = 40;    /* sopra questa quota la barra c'e' sempre             */
+  /* Curva con la partenza morbida. Quella di prima (.16,1,.3,1) copriva
+     quasi tutta la strada nel primo sesto del tempo: per quanto lungo tu la
+     facessi durare, l'occhio vedeva uno scatto e poi una coda. */
+  var EASE   = 'cubic-bezier(.35,0,.2,1)';
+
+  var bar = document.querySelector('.header-cape');
+  if(!bar) return;
+
+  /* L'ordine e' quello che si vede: sinistra, centro, destra. Scendendo se ne
+     vanno in quest'ordine, salendo rientrano al contrario. */
+  var gruppi = [
+    bar.querySelector('.header-cape-left'),
+    bar.querySelector('.header-cape-center'),
+    bar.querySelector('.header-cape-right22')
+  ];
+  if(!gruppi[0] || !gruppi[1] || !gruppi[2]) return;
+
+  var logo = bar.querySelector('.cape-logo');
+
+  var ridotto = false;
+  try{ ridotto = matchMedia('(prefers-reduced-motion: reduce)').matches; }catch(e){}
+  if(ridotto) return;
+
+  /* Di quanto salire per uscire dallo schermo: il bordo basso del pezzo
+     misurato dalla cima della finestra, piu' un dito. Si misura da fermi,
+     con la trasformata tolta, se no si misurerebbe la posizione di adesso. */
+  var salita = [0, 0, 0];
+
+  function misura(){
+    for(var i = 0; i < 3; i++){
+      var g = gruppi[i], t = g.style.transform;
+      g.style.transition = 'none';
+      g.style.transform  = '';
+      salita[i] = Math.ceil(g.getBoundingClientRect().bottom) + 8;
+      g.style.transform  = t;
+      void g.offsetHeight;
+      g.style.transition = '';
+    }
+  }
+
+  var fuori = false;
+
+  function muovi(esci){
+    for(var i = 0; i < 3; i++){
+      var g = gruppi[i];
+      var d = (esci ? i : 2 - i) * PASSO;
+      g.style.transition = 'transform ' + DUR + 'ms ' + EASE + ' ' + d + 'ms, ' +
+                           'opacity '   + DUR + 'ms ' + EASE + ' ' + d + 'ms';
+      g.style.transform     = esci ? 'translateY(-' + salita[i] + 'px)' : '';
+      g.style.opacity       = esci ? '0' : '';
+      g.style.pointerEvents = esci ? 'none' : '';
+    }
+    fuori = esci;
+  }
+
+  /* Mentre le lettere dell'hero volano verso la barra, il logo vero e'
+     nascosto e le lettere atterrano dove sta adesso: spostarlo qui vorrebbe
+     dire farle atterrare su un logo che non c'e' piu'. */
+  function occupata(){
+    return !!(logo && logo.classList.contains('is-ghost'));
+  }
+
+  var yUlt = window.scrollY || window.pageYOffset;
+
+  function suScroll(){
+    var y = window.scrollY || window.pageYOffset;
+    if(window.capeScroll && !capeScroll.libero()){ yUlt = y; return; }
+    var dy = y - yUlt;
+    if(Math.abs(dy) < SOGLIA) return;
+    yUlt = y;
+
+    if(y <= CIMA || occupata()){ if(fuori) muovi(false); return; }
+    if(dy > 0){ if(!fuori) muovi(true);  }
+    else       { if(fuori)  muovi(false); }
+  }
+
+  addEventListener('scroll', suScroll, { passive:true });
+
+  var rT = null;
+  addEventListener('resize', function(){
+    clearTimeout(rT);
+    rT = setTimeout(function(){ if(!fuori) misura(); }, 150);
+  }, { passive:true });
+
+  addEventListener('load', function(){ if(!fuori) misura(); });
+  if(document.fonts && document.fonts.ready){
+    document.fonts.ready.then(function(){ if(!fuori) misura(); }, function(){});
+  }
+
+  window.capePatti && capePatti.dichiara('barra a scalini', {
+    leggo: [['is-ghost', '.header-cape .cape-logo',
+             'mentre le lettere volano verso la barra, la barra resta ferma']]
+  });
+
+  misura();
+})();
+</script>
+
+
+
+
+
+
+<!-- cursore: piano stabile sotto la fusione -->
+<style>
+  .c-sticky{ will-change: transform; }
+</style>
+
+
+<!-- ======================================================================
+     PARTE 2 — DOPO, a pagina montata (tutti con `defer`, in quest'ordine)
+     ----------------------------------------------------------------------
+     Tolti in questa tornata:
+       - ScrollTrigger: nessuna riga della pagina lo chiamava;
+       - la seconda copia di gsap: era caricata due volte.
+     ====================================================================== -->
+
+<!-- gsap: lo usa solo il carosello studio, piu' in basso. Solo il core. -->
+<script defer src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+
+<!-- intro: inchiostro della frase + firma -->
+<script defer src="https://cdn.jsdelivr.net/gh/cash9086/section-intro@1d6d1c7e35b97e8cfbd9a32ae4d4bca041fb9b7d/section-intro.js"></script>
+
+<!-- cursore: logo che si chiude in un punto, con magnetismo.
+     Il contenitore #capecur e il suo stile stanno in PARTE 1. -->
+<script defer src="https://cdn.jsdelivr.net/gh/cash9086/cursore-custom@e524fb9b035cdfb38263b3e77406b96c68312b85/cape-cursore.js"></script>
+
+<!-- Inchiostro: dentro il titolo dell'hero e dentro le immagini .ink-invert -->
+<script defer src="https://cdn.jsdelivr.net/gh/cash9086/cape-title-ink@a07b8acc1d6cd49b613644830bc625b122691901/cape-title-ink.js"></script>
+<script defer src="https://cdn.jsdelivr.net/gh/cash9086/cape-image-ink@79104d4e747f19a8344dc34013fe44dc1b920551/cape-image-ink.js"></script>
+
+<!-- Carosello studio: titolo per lettera, righe a tendina, pager -->
+<script defer src="https://cdn.jsdelivr.net/gh/cash9086/cape-studio-carousel@e90fa7a1de148ae31d428509a37c07f1264e1d62/cape-studio-carousel.js"></script>
+
+<!-- sezione studio: bianca, poi tutto insieme, una volta sola -->
+<script defer src="https://cdn.jsdelivr.net/gh/cash9086/parallassi-slider@6f6aef40a19ef9c7c5dbcd38d66c0bd68f704575/cape-studio-entrata.js"></script>
+
+<!-- binario di scroll -->
+<script defer src="https://cdn.jsdelivr.net/gh/cash9086/scroll-bar@baaad13c395f3db9139be5b0a65bc2ad55b275bd/cape-scroll-rail.js"></script>
+
+<!-- tendina del filmato -->
+<script defer src="https://cdn.jsdelivr.net/gh/cash9086/parallassi-slider@fc2aca5ac6935d8a0e2c64c317b9148249d8bf16/cape-open.js"></script>
+
+<!-- rotta: citta' e coordinate a schizzo -->
+<script defer src="https://cdn.jsdelivr.net/gh/cash9086/parallassi-slider@df8c06398ed4b27d55cfe9bce6396b57c845895c/cape-rotta.js"></script>
+
+<!-- onda: l'invito dei DISCOVER dello scroll orizzontale -->
+<script defer src="https://cdn.jsdelivr.net/gh/cash9086/parallassi-slider@3d7ec42600e38cb9e094c9572e63c95b90c6b7cd/cape-onda.js"></script>
+
+<!-- matita: sole, freccia, stelle, luna e frecce dello studio, a schizzo -->
+<script defer src="https://cdn.jsdelivr.net/gh/cash9086/parallassi-slider@b7db4dbd2659cee6187e925d8fd44ce5397e17ca/cape-matita.js"></script>
+
+<!-- surfista: il footer a matita, in stop-motion -->
+<script defer src="https://cdn.jsdelivr.net/gh/cash9086/parallassi-slider@c07f57e14f0709c07db6ab5d9617fe908743c51b/cape-surfista.js"></script>
+
+<!-- reel -->
+<script defer src="https://cdn.jsdelivr.net/gh/cash9086/parallassi-slider@b5690e219082b7668b6aa2285e43e72fc609af9f/reel-salita.js"></script>
+
+<!-- cape-view: la scritta VIEW che insegue il cursore da lontano -->
+<script defer src="https://cdn.jsdelivr.net/gh/cash9086/cape-view@ad7889eb3e8a8d9b1f98149340fba76cf2ca7b88/cape-view.js"></script>
+
+<!-- La foto si scompone in pixel: cielo stellato, poi bianco.
+     Ultima perche' non ha fretta: si sveglia da sola quando la sezione
+     si avvicina, e fino ad allora non costa niente.
+
+     L'inchiostro e' in naftalina: i suoi due script sono qui sotto,
+     commentati. Per riaccenderlo togli i commenti a quelli, commenta
+     questo, e rileggi il file 2 (il CSS). -->
+<script defer src="https://cdn.jsdelivr.net/gh/cash9086/transition@3f39d07e2b4513c3ac1d93929bd4754abb0448a6/cape-dust.js"></script>
+
+<!--
+<script defer src="https://cdn.jsdelivr.net/gh/cash9086/transition@e784ba28234fb1b1bfe687270f5a99315bc74cdd/ink-transition.js"></script>
+<script defer src="https://cdn.jsdelivr.net/gh/cash9086/transition@e784ba28234fb1b1bfe687270f5a99315bc74cdd/cape-ink-title.js"></script>
+-->
+
+
+<script defer src="https://cdn.jsdelivr.net/gh/cash9086/parallassi-slider@eb6098a96e466290a5a39e6d48c574e13a272191/cape-fondo.js"></script>
